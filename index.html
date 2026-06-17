@@ -23,7 +23,10 @@
       "imports": {
         "react": "https://esm.sh/react@18.2.0",
         "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
-        "lucide-react": "https://esm.sh/lucide-react@0.330.0?deps=react@18.2.0"
+        "react/jsx-runtime": "https://esm.sh/react@18.2.0/jsx-runtime",
+        "lucide-react": "https://esm.sh/lucide-react@0.330.0?deps=react@18.2.0",
+        "firebase/app": "https://esm.sh/firebase@10.8.0/app",
+        "firebase/firestore": "https://esm.sh/firebase@10.8.0/firestore"
       }
     }
   </script>
@@ -38,8 +41,25 @@
       ShoppingCart, Settings, Tag, PlusCircle, MinusCircle, CheckCircle, 
       CreditCard, Banknote, X, Edit2, Trash2, RotateCcw, LayoutDashboard, 
       History, Printer, Download, Calculator, Lock, Sun, Moon, AlertTriangle, Info,
-      GripHorizontal, Archive, Image as ImageIcon
+      GripHorizontal, Archive, Image as ImageIcon, Cloud, Wifi, WifiOff, FileText
     } from 'lucide-react';
+
+    import { initializeApp } from "firebase/app";
+    import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "firebase/firestore";
+
+    // --- CONFIGURAÇÃO DO FIREBASE ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyAd_XhH4euXapob_ORf1Uuv4YobRizX4a4",
+      authDomain: "pdv-81850.firebaseapp.com",
+      projectId: "pdv-81850",
+      storageBucket: "pdv-81850.firebasestorage.app",
+      messagingSenderId: "170651547564",
+      appId: "1:170651547564:web:962c1e5840e7970663ac09",
+      measurementId: "G-FE5G0NDBC3"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
 
     function App() {
       // --- GERENCIAMENTO DE ESTADO E LOCALSTORAGE ---
@@ -74,12 +94,18 @@
       };
       const [cashDrawer, setCashDrawer] = useState(() => loadData('pdv_cash_drawer', defaultDrawer));
 
+      // Sistema de Nuvem
+      const [sessionId, setSessionId] = useState(() => loadData('pdv_session_id', null));
+      const [joinCode, setJoinCode] = useState('');
+      const isSyncing = useRef(false);
+
       // Modais Customizados
       const [isCalcOpen, setIsCalcOpen] = useState(false);
       const [calcInput, setCalcInput] = useState('');
       const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', text: '', action: null, isDanger: false });
       const [alertDialog, setAlertDialog] = useState({ isOpen: false, title: '', text: '' });
       const [isPixModalOpen, setIsPixModalOpen] = useState(false);
+      const [selectedEventLog, setSelectedEventLog] = useState(null); // Detalhes do Evento
       
       const [editingProduct, setEditingProduct] = useState(null);
       const [prodName, setProdName] = useState('');
@@ -89,19 +115,94 @@
       const [pixStudentName, setPixStudentName] = useState('');
       const [pixStudentClass, setPixStudentClass] = useState('');
 
-      // Persistência
+      // Persistência Local
       useEffect(() => { localStorage.setItem('pdv_theme', JSON.stringify(theme)); }, [theme]);
       useEffect(() => { localStorage.setItem('pdv_settings', JSON.stringify(settings)); }, [settings]);
       useEffect(() => { localStorage.setItem('pdv_event_logs', JSON.stringify(eventLogs)); }, [eventLogs]);
       useEffect(() => { localStorage.setItem('pdv_products', JSON.stringify(products)); }, [products]);
       useEffect(() => { localStorage.setItem('pdv_sales', JSON.stringify(sales)); }, [sales]);
       useEffect(() => { localStorage.setItem('pdv_cash_drawer', JSON.stringify(cashDrawer)); }, [cashDrawer]);
+      useEffect(() => { localStorage.setItem('pdv_session_id', JSON.stringify(sessionId)); }, [sessionId]);
 
       // Aplicação do Tema Dark/Light
       useEffect(() => {
         if (theme === 'dark') document.documentElement.classList.add('dark');
         else document.documentElement.classList.remove('dark');
       }, [theme]);
+
+      // --- LÓGICA DE SINCRONIZAÇÃO FIREBASE ---
+      useEffect(() => {
+        if (!sessionId) return;
+        const unsub = onSnapshot(doc(db, "pdv_sessions", sessionId), (docSnap) => {
+          if (docSnap.exists()) {
+            isSyncing.current = true;
+            const data = docSnap.data();
+            if(data.settings) setSettings(data.settings);
+            if(data.products) setProducts(data.products);
+            if(data.sales) setSales(data.sales);
+            if(data.cashDrawer) setCashDrawer(data.cashDrawer);
+            if(data.eventLogs) setEventLogs(data.eventLogs);
+            
+            setTimeout(() => { isSyncing.current = false; }, 800);
+          } else {
+            setSessionId(null);
+            setAlertDialog({isOpen: true, title: 'Sessão Encerrada', text: 'A sessão remota foi fechada ou não existe mais.'});
+          }
+        });
+        return () => unsub();
+      }, [sessionId]);
+
+      useEffect(() => {
+        if(!sessionId || isSyncing.current) return;
+        const pushToCloud = async () => {
+          try {
+            await setDoc(doc(db, "pdv_sessions", sessionId), {
+              settings, products, sales, cashDrawer, eventLogs, updatedAt: new Date().toISOString()
+            }, { merge: true });
+          } catch(e) {
+            console.error("Erro ao sincronizar dados", e);
+          }
+        };
+        const timeoutId = setTimeout(pushToCloud, 1000);
+        return () => clearTimeout(timeoutId);
+      }, [settings, products, sales, cashDrawer, eventLogs, sessionId]);
+
+      const createCloudSession = async () => {
+        const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+        try {
+          await setDoc(doc(db, "pdv_sessions", code), {
+            settings, products, sales, cashDrawer, eventLogs, createdAt: new Date().toISOString()
+          });
+          setSessionId(code);
+          setAlertDialog({isOpen: true, title: 'Sessão Criada!', text: `Seu código de acesso é: ${code}. Use-o nos outros dispositivos para conectar.`});
+        } catch(e) {
+          setAlertDialog({isOpen: true, title: 'Erro de Conexão', text: 'Não foi possível criar a sessão na nuvem. Verifique sua rede.'});
+        }
+      };
+
+      const joinCloudSession = async () => {
+        if(!joinCode.trim()) return;
+        const code = joinCode.trim().toUpperCase();
+        try {
+          const docSnap = await getDoc(doc(db, "pdv_sessions", code));
+          if(docSnap.exists()) {
+            setSessionId(code);
+            setJoinCode('');
+            setAlertDialog({isOpen: true, title: 'Conectado!', text: `Dispositivo sincronizado com a sessão ${code} com sucesso.`});
+          } else {
+            setAlertDialog({isOpen: true, title: 'Não Encontrado', text: 'O código inserido não existe ou a sessão foi encerrada.'});
+          }
+        } catch(e) {
+          setAlertDialog({isOpen: true, title: 'Erro de Conexão', text: 'Falha ao buscar a sessão. Verifique sua internet.'});
+        }
+      };
+
+      const disconnectSession = () => {
+        setConfirmDialog({
+          isOpen: true, title: 'Desconectar Dispositivo', text: 'Tem certeza? Este dispositivo não receberá mais atualizações dos outros caixas.', isDanger: true,
+          action: () => setSessionId(null)
+        });
+      };
 
       // Utilitários
       const formatCurrency = (val) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -202,11 +303,9 @@
         }, { total: 0, pix: 0, dinheiro: 0, discounts: 0, items: {} });
       };
 
-      // Funcionalidade de Impressão (Força tema claro)
       const executeWithLightMode = (callback) => {
         const wasDark = document.documentElement.classList.contains('dark');
         if (wasDark) document.documentElement.classList.remove('dark');
-        
         setTimeout(() => {
           callback(() => {
             if (wasDark) document.documentElement.classList.add('dark');
@@ -217,7 +316,6 @@
       const requestPrint = () => {
         executeWithLightMode((restoreTheme) => {
           window.print();
-          // Timeout de segurança após a janela de impressão abrir
           setTimeout(restoreTheme, 1000); 
         });
       };
@@ -342,14 +440,62 @@
             </div>
           )}
 
-          {/* Calculadora Flutuante e Móvel */}
+          {/* Modal: Detalhes do Evento Arquivado */}
+          {selectedEventLog && (
+            <div className="absolute inset-0 bg-black/60 z-[90] flex items-center justify-center p-4 backdrop-blur-sm print:hidden">
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-3xl overflow-hidden animate-in zoom-in-95 flex flex-col max-h-[90vh]">
+                <div className="flex justify-between items-center p-5 border-b dark:border-gray-700 bg-blue-50 dark:bg-blue-900/30">
+                  <div>
+                    <h3 className="font-bold text-blue-800 dark:text-blue-400 flex items-center gap-2 text-lg">
+                      <Archive size={20} /> Detalhes: {selectedEventLog.eventName}
+                    </h3>
+                    <p className="text-sm text-gray-500 mt-1">{formatDate(selectedEventLog.date)}</p>
+                  </div>
+                  <button onClick={() => setSelectedEventLog(null)} className="text-gray-500 hover:text-red-500 transition-colors p-2"><X size={24} /></button>
+                </div>
+                <div className="p-6 overflow-y-auto flex-1">
+                  <div className="grid grid-cols-2 gap-4 mb-6">
+                    <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-xl border border-green-200 dark:border-green-800/50 text-center">
+                      <p className="text-xs uppercase font-bold text-green-700 dark:text-green-400">Total Faturado</p>
+                      <p className="text-2xl font-black text-green-700 dark:text-green-300">{formatCurrency(selectedEventLog.totalSales)}</p>
+                    </div>
+                    <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-200 dark:border-blue-800/50 text-center">
+                      <p className="text-xs uppercase font-bold text-blue-700 dark:text-blue-400">Total de Transações</p>
+                      <p className="text-2xl font-black text-blue-700 dark:text-blue-300">{selectedEventLog.salesCount}</p>
+                    </div>
+                  </div>
+                  
+                  <h4 className="font-bold mb-3 text-lg border-b dark:border-gray-700 pb-2">Histórico de Transações do Evento</h4>
+                  <div className="space-y-3">
+                    {selectedEventLog.salesData.length === 0 && <p className="text-gray-500">Nenhuma transação registrada neste evento.</p>}
+                    {selectedEventLog.salesData.map(sale => (
+                      <div key={sale.id} className="bg-gray-50 dark:bg-gray-700/30 p-4 rounded-xl border dark:border-gray-700 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                            <span className={`px-2 py-0.5 rounded text-xs font-bold ${sale.paymentMethod === 'PIX' ? 'bg-teal-100 dark:bg-teal-900/50 text-teal-800 dark:text-teal-300' : 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300'}`}>{sale.paymentMethod}</span>
+                            <span className="text-xs text-gray-500">{new Date(sale.timestamp).toLocaleTimeString('pt-BR')}</span>
+                            {sale.studentInfo && <span className="text-xs bg-gray-200 dark:bg-gray-600 px-2 py-0.5 rounded-md">👤 {sale.studentInfo.name} ({sale.studentInfo.schoolClass})</span>}
+                          </div>
+                          <p className="text-sm text-gray-700 dark:text-gray-300">
+                            {sale.items.map(i => `${i.quantity}x ${i.product.name}`).join(' • ')}
+                          </p>
+                        </div>
+                        <span className="text-lg font-black shrink-0">{formatCurrency(sale.total)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Calculadora Flutuante */}
           {isCalcOpen && (
             <div 
               ref={calcRef}
               style={{ transform: `translate(${calcPos.current.x}px, ${calcPos.current.y}px)` }}
               className="fixed top-0 left-0 z-50 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 w-64 print:hidden animate-in fade-in overflow-hidden"
             >
-              {/* Header arrastável */}
               <div 
                 className="flex justify-between items-center p-3 bg-gray-100 dark:bg-gray-900 cursor-move border-b border-gray-200 dark:border-gray-700"
                 onMouseDown={handleCalcDragStart}
@@ -407,7 +553,7 @@
           )}
 
           {/* ================= BARRA LATERAL ================= */}
-          <aside className="w-20 md:w-64 border-r dark:border-gray-800 flex flex-col p-4 shadow-sm print:hidden transition-all duration-300 z-10 shrink-0 h-screen overflow-y-auto bg-white dark:bg-gray-900">
+          <aside className="w-20 md:w-64 border-r dark:border-gray-800 flex flex-col p-4 shadow-sm print:hidden transition-all duration-300 z-10 shrink-0 h-screen overflow-y-auto bg-white dark:bg-gray-900 relative">
             <div className="flex items-center gap-3 px-2 mb-8 mt-2 text-blue-600 dark:text-blue-500">
               <img src={settings.logoUrl} alt="Logo" className="w-10 h-10 rounded-full object-cover border-2 border-current shrink-0 bg-white" />
               <div className="hidden md:block overflow-hidden">
@@ -427,6 +573,11 @@
             </nav>
 
             <div className="mt-auto space-y-2 pt-4 border-t border-gray-200 dark:border-gray-800">
+              {sessionId && (
+                <div className="mb-2 flex items-center justify-center gap-2 text-xs font-bold text-green-600 bg-green-50 dark:bg-green-900/30 p-2 rounded-lg">
+                  <Wifi size={14}/> <span className="hidden md:block">Nuvem: {sessionId}</span>
+                </div>
+              )}
               <button onClick={() => setIsCalcOpen(!isCalcOpen)} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
                 <Calculator size={20}/> <span className="hidden md:block font-medium">Calculadora</span>
               </button>
@@ -637,7 +788,6 @@
                       </table>
                     </div>
 
-                    {/* ÁREA DE ASSINATURAS */}
                     <div className="mt-20 pt-16 flex flex-col md:flex-row justify-around text-center text-sm font-semibold text-black gap-8">
                       <div>
                         <p>_____________________________________</p>
@@ -706,12 +856,10 @@
                         <p className="text-xs uppercase font-bold text-gray-600">Valor Físico Contado</p>
                         <p className="text-3xl font-black text-emerald-700">{formatCurrency(drawerTotal)}</p>
                       </div>
-                      
                       <div className="text-center">
                         <p className="text-xs uppercase font-bold text-gray-600">Registrado no Sistema</p>
                         <p className="text-xl font-bold text-gray-800">{formatCurrency(reportData.dinheiro)}</p>
                       </div>
-
                       <div className="text-center md:text-right mt-4 md:mt-0">
                         <p className="text-xs uppercase font-bold text-gray-600">Diferença de Caixa</p>
                         {drawerDiff === 0 ? (
@@ -724,7 +872,6 @@
                       </div>
                     </div>
 
-                    {/* ÁREA DE ASSINATURAS */}
                     <div className="mt-20 pt-16 flex flex-col md:flex-row justify-around text-center text-sm font-semibold text-black gap-8">
                       <div>
                         <p>_____________________________________</p>
@@ -748,24 +895,64 @@
                 <div className="max-w-3xl mx-auto print:hidden space-y-6">
                   <h2 className="text-2xl font-bold mb-6">Configurações do Sistema</h2>
                   
+                  {/* SINCRONIZAÇÃO NUVEM (NOVO) */}
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 p-6 space-y-4">
+                    <h3 className="font-bold text-lg border-b dark:border-gray-700 pb-2 flex items-center justify-between">
+                      <span className="flex items-center gap-2"><Cloud size={20}/> Conexão em Nuvem (Multi-Dispositivos)</span>
+                      {sessionId ? <span className="flex items-center gap-1 text-sm bg-green-100 text-green-700 px-2 py-1 rounded"><Wifi size={16}/> Online</span> : <span className="flex items-center gap-1 text-sm bg-gray-200 text-gray-600 px-2 py-1 rounded"><WifiOff size={16}/> Offline</span>}
+                    </h3>
+                    
+                    {sessionId ? (
+                      <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-200 dark:border-blue-800 flex flex-col md:flex-row items-center justify-between gap-4">
+                        <div>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Você está conectado à sessão:</p>
+                          <p className="text-3xl font-black text-blue-600 dark:text-blue-400 font-mono tracking-widest">{sessionId}</p>
+                        </div>
+                        <button onClick={disconnectSession} className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg w-full md:w-auto transition-colors">
+                          Desconectar
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col md:flex-row gap-6">
+                        <div className="flex-1 space-y-3">
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Crie uma nova sala para que outros caixas conectem.</p>
+                          <button onClick={createCloudSession} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl flex justify-center items-center gap-2 transition-colors">
+                            <PlusCircle size={20}/> Criar Nova Sessão
+                          </button>
+                        </div>
+                        <div className="flex-1 space-y-3 border-t md:border-t-0 md:border-l dark:border-gray-700 pt-4 md:pt-0 md:pl-6">
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Ou entre em uma sessão existente (Digite o código):</p>
+                          <div className="flex gap-2">
+                            <input 
+                              type="text" value={joinCode} onChange={(e) => setJoinCode(e.target.value.toUpperCase())} maxLength={6}
+                              placeholder="CÓDIGO" 
+                              className="w-full p-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-600 rounded-xl outline-none font-mono text-center font-bold" 
+                            />
+                            <button onClick={joinCloudSession} className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-4 rounded-xl transition-colors">
+                              Entrar
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Identidade Visual */}
                   <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 p-6 space-y-4">
                     <h3 className="font-bold text-lg border-b dark:border-gray-700 pb-2 flex items-center gap-2"><ImageIcon size={20}/> Identidade Visual</h3>
-                    
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-semibold mb-2">Nome do Grêmio / Organização</label>
-                        <input type="text" value={settings.gremioName} onChange={e => setSettings({...settings, gremioName: e.target.value})} className="w-full p-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-600 rounded-xl outline-none" placeholder="Ex: Grêmio Estudantil" />
+                        <input type="text" value={settings.gremioName} onChange={e => setSettings({...settings, gremioName: e.target.value})} className="w-full p-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-600 rounded-xl outline-none" />
                       </div>
                       <div>
                         <label className="block text-sm font-semibold mb-2">Nome do Evento Atual</label>
-                        <input type="text" value={settings.eventName} onChange={e => setSettings({...settings, eventName: e.target.value})} className="w-full p-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-600 rounded-xl outline-none" placeholder="Ex: Festa Junina 2026" />
+                        <input type="text" value={settings.eventName} onChange={e => setSettings({...settings, eventName: e.target.value})} className="w-full p-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-600 rounded-xl outline-none" />
                       </div>
                     </div>
                     <div>
                       <label className="block text-sm font-semibold mb-2">URL da Logo (Imagem)</label>
-                      <input type="url" value={settings.logoUrl} onChange={e => setSettings({...settings, logoUrl: e.target.value})} className="w-full p-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-600 rounded-xl outline-none" placeholder="https://..." />
-                      <p className="text-xs text-gray-500 mt-1">Cole o link de uma imagem para aparecer nos relatórios impressos.</p>
+                      <input type="url" value={settings.logoUrl} onChange={e => setSettings({...settings, logoUrl: e.target.value})} className="w-full p-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-600 rounded-xl outline-none" />
                     </div>
                   </div>
 
@@ -795,7 +982,7 @@
                             setAlertDialog({isOpen: true, title: 'Sucesso', text: 'Evento salvo nos logs e caixa zerado com sucesso!'});
                           }
                         });
-                     }} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl flex items-center gap-2">
+                     }} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl flex items-center gap-2 transition-colors">
                        <Archive size={20}/> Encerrar Evento Atual e Arquivar
                      </button>
 
@@ -806,15 +993,20 @@
                          <div className="overflow-x-auto">
                            <table className="w-full text-left text-sm border dark:border-gray-700 rounded-lg overflow-hidden">
                              <thead className="bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-400">
-                               <tr><th className="p-3">Data</th><th className="p-3">Evento</th><th className="p-3">Qtd. Vendas</th><th className="p-3 text-right">Faturamento</th></tr>
+                               <tr><th className="p-3">Data</th><th className="p-3">Evento</th><th className="p-3">Vendas</th><th className="p-3">Faturamento</th><th className="p-3 text-center">Ação</th></tr>
                              </thead>
                              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                                {eventLogs.map(log => (
                                  <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                                   <td className="p-3">{new Date(log.date).toLocaleDateString('pt-BR')}</td>
+                                   <td className="p-3 whitespace-nowrap">{new Date(log.date).toLocaleDateString('pt-BR')}</td>
                                    <td className="p-3 font-medium">{log.eventName}</td>
                                    <td className="p-3">{log.salesCount}</td>
-                                   <td className="p-3 text-right font-bold text-green-600 dark:text-green-400">{formatCurrency(log.totalSales)}</td>
+                                   <td className="p-3 font-bold text-green-600 dark:text-green-400">{formatCurrency(log.totalSales)}</td>
+                                   <td className="p-3 text-center">
+                                      <button onClick={() => setSelectedEventLog(log)} className="text-blue-500 bg-blue-50 dark:bg-blue-900/30 px-3 py-1.5 rounded-lg font-bold hover:bg-blue-100 flex items-center gap-1 mx-auto transition-colors">
+                                        <FileText size={14}/> Abrir
+                                      </button>
+                                   </td>
                                  </tr>
                                ))}
                              </tbody>
@@ -838,7 +1030,7 @@
                             setActiveTab('pos');
                           }
                         });
-                    }} className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-xl">
+                    }} className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-xl transition-colors">
                       Excluir Todos os Dados e Resetar
                     </button>
                   </div>
@@ -855,4 +1047,4 @@
     root.render(<App />);
   </script>
 </body>
-  </html>
+</html>
