@@ -23,9 +23,7 @@
       "imports": {
         "react": "https://esm.sh/react@18.2.0",
         "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
-        "lucide-react": "https://esm.sh/lucide-react@0.330.0?deps=react@18.2.0",
-        "firebase/app": "https://esm.sh/firebase@10.8.0/app",
-        "firebase/firestore": "https://esm.sh/firebase@10.8.0/firestore"
+        "lucide-react": "https://esm.sh/lucide-react@0.330.0?deps=react@18.2.0"
       }
     }
   </script>
@@ -43,23 +41,6 @@
       GripHorizontal, Archive, Image as ImageIcon
     } from 'lucide-react';
 
-    // --- CONFIGURAÇÃO FIREBASE ---
-    import { initializeApp } from "firebase/app";
-    import { getFirestore, doc, setDoc, onSnapshot } from "firebase/firestore";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyAd_XhH4euXapob_ORf1Uuv4YobRizX4a4",
-      authDomain: "pdv-81850.firebaseapp.com",
-      projectId: "pdv-81850",
-      storageBucket: "pdv-81850.firebasestorage.app",
-      messagingSenderId: "170651547564",
-      appId: "1:170651547564:web:962c1e5840e7970663ac09",
-      measurementId: "G-FE5G0NDBC3"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-
     function App() {
       // --- GERENCIAMENTO DE ESTADO E LOCALSTORAGE ---
       const loadData = (key, defaultValue) => {
@@ -68,6 +49,7 @@
       };
 
       const [theme, setTheme] = useState(() => loadData('pdv_theme', 'light'));
+      
       const defaultSettings = { 
         eventName: 'Evento Atual', 
         gremioName: 'Grêmio Estudantil',
@@ -78,6 +60,7 @@
         const loaded = loadData('pdv_settings', defaultSettings);
         return { ...defaultSettings, ...loaded };
       });
+      
       const [eventLogs, setEventLogs] = useState(() => loadData('pdv_event_logs', []));
       const [products, setProducts] = useState(() => loadData('pdv_products', []));
       const [sales, setSales] = useState(() => loadData('pdv_sales', []));
@@ -91,17 +74,13 @@
       };
       const [cashDrawer, setCashDrawer] = useState(() => loadData('pdv_cash_drawer', defaultDrawer));
 
-      // Novos Estados para o Firebase e Arquivos
-      const [syncCode, setSyncCode] = useState(() => loadData('pdv_sync_code', ''));
-      const [syncInput, setSyncInput] = useState('');
-      const [viewingEvent, setViewingEvent] = useState(null);
-
       // Modais Customizados
       const [isCalcOpen, setIsCalcOpen] = useState(false);
       const [calcInput, setCalcInput] = useState('');
       const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', text: '', action: null, isDanger: false });
       const [alertDialog, setAlertDialog] = useState({ isOpen: false, title: '', text: '' });
       const [isPixModalOpen, setIsPixModalOpen] = useState(false);
+      
       const [editingProduct, setEditingProduct] = useState(null);
       const [prodName, setProdName] = useState('');
       const [prodPrice, setProdPrice] = useState('');
@@ -110,7 +89,7 @@
       const [pixStudentName, setPixStudentName] = useState('');
       const [pixStudentClass, setPixStudentClass] = useState('');
 
-      // --- EFEITOS DE SINCRONIZAÇÃO E PERSISTÊNCIA ---
+      // Persistência
       useEffect(() => { localStorage.setItem('pdv_theme', JSON.stringify(theme)); }, [theme]);
       useEffect(() => { localStorage.setItem('pdv_settings', JSON.stringify(settings)); }, [settings]);
       useEffect(() => { localStorage.setItem('pdv_event_logs', JSON.stringify(eventLogs)); }, [eventLogs]);
@@ -118,37 +97,13 @@
       useEffect(() => { localStorage.setItem('pdv_sales', JSON.stringify(sales)); }, [sales]);
       useEffect(() => { localStorage.setItem('pdv_cash_drawer', JSON.stringify(cashDrawer)); }, [cashDrawer]);
 
+      // Aplicação do Tema Dark/Light
       useEffect(() => {
         if (theme === 'dark') document.documentElement.classList.add('dark');
         else document.documentElement.classList.remove('dark');
       }, [theme]);
 
-      // Sincronização passiva com o Firebase
-      useEffect(() => {
-        if (!syncCode) return;
-        const unsub = onSnapshot(doc(db, "pdv_rooms", syncCode), (docSnap) => {
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            if (data.products) setProducts(data.products);
-            if (data.settings) setSettings(data.settings);
-            if (data.sales) setSales(data.sales);
-            if (data.eventLogs) setEventLogs(data.eventLogs);
-          }
-        });
-        return () => unsub();
-      }, [syncCode]);
-
-      // Função para forçar o envio de dados para o Firebase
-      const pushToFirebase = async (dataToUpdate) => {
-        if (!syncCode) return;
-        try {
-          await setDoc(doc(db, "pdv_rooms", syncCode), dataToUpdate, { merge: true });
-        } catch (e) {
-          console.error("Erro ao sincronizar:", e);
-        }
-      };
-
-      // --- UTILITÁRIOS ---
+      // Utilitários
       const formatCurrency = (val) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
       const formatDate = (isoString) => new Date(isoString).toLocaleString('pt-BR');
 
@@ -171,7 +126,7 @@
 
       const cartSubtotal = cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
       const cartTotal = Math.max(0, cartSubtotal - cartDiscount);
-      
+
       const handlePixClick = () => {
         if (cart.length === 0) return;
         setIsPixModalOpen(true);
@@ -179,6 +134,7 @@
 
       const processCheckout = (paymentMethod) => {
         if (cart.length === 0) return;
+        
         if (paymentMethod === 'PIX' && (!pixStudentName.trim() || !pixStudentClass.trim())) {
           setAlertDialog({ isOpen: true, title: 'Atenção', text: 'Por favor, preencha o Nome e a Série do aluno.'});
           return;
@@ -191,11 +147,7 @@
           studentInfo: paymentMethod === 'PIX' ? { name: pixStudentName, schoolClass: pixStudentClass } : null
         };
 
-        const updatedSales = [newSale, ...sales];
-        setSales(updatedSales); 
-        pushToFirebase({ sales: updatedSales });
-
-        setCart([]); setCartDiscount(0);
+        setSales([newSale, ...sales]); setCart([]); setCartDiscount(0);
         setPixStudentName(''); setPixStudentClass(''); setIsPixModalOpen(false);
 
         setCheckoutMsg(`Sucesso! ${formatCurrency(cartTotal)} via ${paymentMethod}`);
@@ -205,11 +157,7 @@
       const cancelSale = (saleId) => {
         setConfirmDialog({
           isOpen: true, title: 'Estornar Venda', text: 'Tem certeza que deseja estornar (cancelar) esta venda? Ela será removida do histórico atual.', isDanger: true,
-          action: () => {
-            const updatedSales = sales.filter(s => s.id !== saleId);
-            setSales(updatedSales);
-            pushToFirebase({ sales: updatedSales });
-          }
+          action: () => setSales(sales.filter(s => s.id !== saleId))
         });
       };
 
@@ -218,17 +166,12 @@
         e.preventDefault();
         if (!prodName || !prodPrice) return;
         const priceNum = parseFloat(prodPrice.toString().replace(',', '.'));
-        
-        let updatedProducts;
         if (editingProduct) {
-          updatedProducts = products.map(p => p.id === editingProduct.id ? { ...p, name: prodName, price: priceNum } : p);
+          setProducts(products.map(p => p.id === editingProduct.id ? { ...p, name: prodName, price: priceNum } : p));
           setEditingProduct(null);
         } else {
-          updatedProducts = [...products, { id: Date.now().toString(), name: prodName, price: priceNum }];
+          setProducts([...products, { id: Date.now().toString(), name: prodName, price: priceNum }]);
         }
-        
-        setProducts(updatedProducts);
-        pushToFirebase({ products: updatedProducts });
         setProdName(''); setProdPrice('');
       };
 
@@ -236,10 +179,8 @@
         setConfirmDialog({
           isOpen: true, title: 'Excluir Produto', text: 'Deseja excluir este produto definitivamente do cardápio?', isDanger: true,
           action: () => {
-            const updatedProducts = products.filter(p => p.id !== id);
-            setProducts(updatedProducts);
+            setProducts(products.filter(p => p.id !== id));
             setCart(cart.filter(item => item.product.id !== id));
-            pushToFirebase({ products: updatedProducts });
           }
         });
       };
@@ -261,6 +202,7 @@
         }, { total: 0, pix: 0, dinheiro: 0, discounts: 0, items: {} });
       };
 
+      // Funcionalidade de Impressão (Força tema claro)
       const executeWithLightMode = (callback) => {
         const wasDark = document.documentElement.classList.contains('dark');
         if (wasDark) document.documentElement.classList.remove('dark');
@@ -275,6 +217,7 @@
       const requestPrint = () => {
         executeWithLightMode((restoreTheme) => {
           window.print();
+          // Timeout de segurança após a janela de impressão abrir
           setTimeout(restoreTheme, 1000); 
         });
       };
@@ -306,7 +249,7 @@
         const startY = e.clientY || e.touches[0].clientY;
         const startPosX = calcPos.current.x;
         const startPosY = calcPos.current.y;
-        
+
         const onMove = (moveEvent) => {
           const currentX = moveEvent.clientX || (moveEvent.touches && moveEvent.touches[0].clientX);
           const currentY = moveEvent.clientY || (moveEvent.touches && moveEvent.touches[0].clientY);
@@ -331,7 +274,7 @@
         document.addEventListener('touchmove', onMove, { passive: false });
         document.addEventListener('touchend', onEnd);
       };
-      
+
       const handleCalcBtn = (btn) => {
         if(btn === 'C') setCalcInput('');
         else if(btn === '=') { 
@@ -340,11 +283,11 @@
             let res = eval(evalStr);
             setCalcInput(res.toString().replace(/\./g, ',')); 
           } catch(e) { 
-            setCalcInput('Erro');
+            setCalcInput('Erro'); 
           } 
         } 
         else { 
-          setCalcInput(prev => prev === 'Erro' ? btn : prev + btn);
+          setCalcInput(prev => prev === 'Erro' ? btn : prev + btn); 
         }
       };
 
@@ -399,35 +342,19 @@
             </div>
           )}
 
-          {/* Modal de Detalhes do Evento Arquivado */}
-          {viewingEvent && (
-            <div className="absolute inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm print:hidden">
-              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col animate-in zoom-in-95">
-                <div className="flex justify-between items-center p-4 border-b dark:border-gray-700">
-                  <h3 className="font-bold text-lg">Detalhes: {viewingEvent.eventName}</h3>
-                  <button onClick={() => setViewingEvent(null)} className="text-gray-500 hover:text-red-500"><X size={24}/></button>
-                </div>
-                <div className="p-6 overflow-y-auto flex-1">
-                  <p className="mb-4"><strong>Data:</strong> {new Date(viewingEvent.date).toLocaleString('pt-BR')}</p>
-                  <p className="mb-4"><strong>Faturamento:</strong> {formatCurrency(viewingEvent.totalSales)}</p>
-                  <h4 className="font-bold mb-2">Vendas Realizadas:</h4>
-                  <ul className="space-y-3">
-                    {viewingEvent.salesData.map(sale => (
-                      <li key={sale.id} className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg border dark:border-gray-600 flex justify-between">
-                        <span>{sale.items.map(i => `${i.quantity}x ${i.product.name}`).join(', ')}</span>
-                        <span className="font-bold">{formatCurrency(sale.total)} ({sale.paymentMethod})</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Calculadora Flutuante */}
+          {/* Calculadora Flutuante e Móvel */}
           {isCalcOpen && (
-            <div ref={calcRef} style={{ transform: `translate(${calcPos.current.x}px, ${calcPos.current.y}px)` }} className="fixed top-0 left-0 z-50 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 w-64 print:hidden animate-in fade-in overflow-hidden">
-              <div className="flex justify-between items-center p-3 bg-gray-100 dark:bg-gray-900 cursor-move border-b border-gray-200 dark:border-gray-700" onMouseDown={handleCalcDragStart} onTouchStart={handleCalcDragStart}>
+            <div 
+              ref={calcRef}
+              style={{ transform: `translate(${calcPos.current.x}px, ${calcPos.current.y}px)` }}
+              className="fixed top-0 left-0 z-50 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 w-64 print:hidden animate-in fade-in overflow-hidden"
+            >
+              {/* Header arrastável */}
+              <div 
+                className="flex justify-between items-center p-3 bg-gray-100 dark:bg-gray-900 cursor-move border-b border-gray-200 dark:border-gray-700"
+                onMouseDown={handleCalcDragStart}
+                onTouchStart={handleCalcDragStart}
+              >
                 <div className="flex items-center gap-2 text-gray-500">
                   <GripHorizontal size={16}/>
                   <span className="font-bold text-sm uppercase">Calculadora</span>
@@ -514,7 +441,7 @@
           {/* ================= ÁREA DE CONTEÚDO PRINCIPAL ================= */}
           <main className="flex-1 flex flex-col h-screen overflow-hidden print:h-auto print:overflow-visible relative">
             <div className="flex-1 overflow-y-auto p-4 md:p-6 print:p-0">
-          
+              
               {/* === CAIXA (PDV) === */}
               {activeTab === 'pos' && (
                 <div className="flex flex-col lg:flex-row gap-6 h-full print:hidden">
@@ -820,67 +747,6 @@
               {activeTab === 'settings' && (
                 <div className="max-w-3xl mx-auto print:hidden space-y-6">
                   <h2 className="text-2xl font-bold mb-6">Configurações do Sistema</h2>
-
-                  {/* Sincronização de Dispositivos */}
-                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-2xl shadow-sm border border-blue-200 dark:border-blue-800 p-6">
-                    <h3 className="font-bold text-blue-800 dark:text-blue-400 mb-4 flex items-center gap-2"><LayoutDashboard size={20}/> Sincronizar Dispositivos (Nuvem)</h3>
-                    
-                    {syncCode ? (
-                      <div className="bg-white dark:bg-gray-800 p-4 rounded-xl text-center">
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Você está conectado à sala:</p>
-                        <p className="text-3xl font-black text-blue-600 tracking-widest">{syncCode}</p>
-                        <button onClick={() => {
-                          setSyncCode('');
-                          localStorage.removeItem('pdv_sync_code');
-                          setAlertDialog({isOpen: true, title: 'Desconectado', text: 'Este dispositivo não está mais sincronizando na nuvem.'});
-                        }} className="mt-4 px-4 py-2 bg-red-100 text-red-600 rounded-lg font-bold hover:bg-red-200">
-                          Desconectar
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="p-4 bg-white dark:bg-gray-800 rounded-xl">
-                          <h4 className="font-bold mb-2">Criar Nova Sala</h4>
-                          <p className="text-xs text-gray-500 mb-4">Cria um código para outros dispositivos se conectarem a este caixa.</p>
-                          <button onClick={async () => {
-                            const newCode = Math.floor(100000 + Math.random() * 900000).toString();
-                            setSyncCode(newCode);
-                            localStorage.setItem('pdv_sync_code', newCode);
-                            await setDoc(doc(db, "pdv_rooms", newCode), {
-                              products, settings, sales, eventLogs
-                            });
-                            setAlertDialog({isOpen: true, title: 'Sala Criada', text: `Sua sala é: ${newCode}. Use este código nos outros aparelhos.`});
-                          }} className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700">
-                            Gerar Código
-                          </button>
-                        </div>
-                        
-                        <div className="p-4 bg-white dark:bg-gray-800 rounded-xl flex flex-col justify-between">
-                          <div>
-                            <h4 className="font-bold mb-2">Entrar em uma Sala</h4>
-                            <p className="text-xs text-gray-500 mb-2">Digite o código do dispositivo principal.</p>
-                            <input 
-                              type="text" 
-                              maxLength="6"
-                              placeholder="000000" 
-                              value={syncInput}
-                              onChange={e => setSyncInput(e.target.value)}
-                              className="w-full p-3 mb-4 bg-gray-50 dark:bg-gray-900 border dark:border-gray-600 rounded-xl outline-none text-center font-bold tracking-widest text-lg" 
-                            />
-                          </div>
-                          <button onClick={() => {
-                            if(syncInput.length === 6) {
-                              setSyncCode(syncInput);
-                              localStorage.setItem('pdv_sync_code', syncInput);
-                              setAlertDialog({isOpen: true, title: 'Conectado', text: 'Puxando dados do servidor...'});
-                            }
-                          }} className="w-full py-3 bg-teal-500 text-white rounded-xl font-bold hover:bg-teal-600">
-                            Conectar
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
                   
                   {/* Identidade Visual */}
                   <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 p-6 space-y-4">
@@ -889,25 +755,16 @@
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-semibold mb-2">Nome do Grêmio / Organização</label>
-                        <input type="text" value={settings.gremioName} onChange={e => {
-                          const newSettings = {...settings, gremioName: e.target.value};
-                          setSettings(newSettings); pushToFirebase({ settings: newSettings });
-                        }} className="w-full p-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-600 rounded-xl outline-none" placeholder="Ex: Grêmio Estudantil" />
+                        <input type="text" value={settings.gremioName} onChange={e => setSettings({...settings, gremioName: e.target.value})} className="w-full p-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-600 rounded-xl outline-none" placeholder="Ex: Grêmio Estudantil" />
                       </div>
                       <div>
                         <label className="block text-sm font-semibold mb-2">Nome do Evento Atual</label>
-                        <input type="text" value={settings.eventName} onChange={e => {
-                          const newSettings = {...settings, eventName: e.target.value};
-                          setSettings(newSettings); pushToFirebase({ settings: newSettings });
-                        }} className="w-full p-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-600 rounded-xl outline-none" placeholder="Ex: Festa Junina 2026" />
+                        <input type="text" value={settings.eventName} onChange={e => setSettings({...settings, eventName: e.target.value})} className="w-full p-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-600 rounded-xl outline-none" placeholder="Ex: Festa Junina 2026" />
                       </div>
                     </div>
                     <div>
                       <label className="block text-sm font-semibold mb-2">URL da Logo (Imagem)</label>
-                      <input type="url" value={settings.logoUrl} onChange={e => {
-                        const newSettings = {...settings, logoUrl: e.target.value};
-                        setSettings(newSettings); pushToFirebase({ settings: newSettings });
-                      }} className="w-full p-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-600 rounded-xl outline-none" placeholder="https://..." />
+                      <input type="url" value={settings.logoUrl} onChange={e => setSettings({...settings, logoUrl: e.target.value})} className="w-full p-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-600 rounded-xl outline-none" placeholder="https://..." />
                       <p className="text-xs text-gray-500 mt-1">Cole o link de uma imagem para aparecer nos relatórios impressos.</p>
                     </div>
                   </div>
@@ -931,17 +788,10 @@
                               salesCount: sales.length,
                               salesData: [...sales]
                             };
-                            
-                            const updatedLogs = [newLog, ...eventLogs];
-                            const newSettings = {...settings, eventName: 'Novo Evento'};
-
-                            setEventLogs(updatedLogs);
+                            setEventLogs([newLog, ...eventLogs]);
                             setSales([]);
                             setCashDrawer(defaultDrawer);
-                            setSettings(newSettings);
-                            
-                            pushToFirebase({ eventLogs: updatedLogs, sales: [], settings: newSettings });
-                            
+                            setSettings({...settings, eventName: 'Novo Evento'});
                             setAlertDialog({isOpen: true, title: 'Sucesso', text: 'Evento salvo nos logs e caixa zerado com sucesso!'});
                           }
                         });
@@ -956,7 +806,7 @@
                          <div className="overflow-x-auto">
                            <table className="w-full text-left text-sm border dark:border-gray-700 rounded-lg overflow-hidden">
                              <thead className="bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-400">
-                               <tr><th className="p-3">Data</th><th className="p-3">Evento</th><th className="p-3">Qtd. Vendas</th><th className="p-3 text-right">Faturamento</th><th className="p-3 text-center">Ações</th></tr>
+                               <tr><th className="p-3">Data</th><th className="p-3">Evento</th><th className="p-3">Qtd. Vendas</th><th className="p-3 text-right">Faturamento</th></tr>
                              </thead>
                              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                                {eventLogs.map(log => (
@@ -965,11 +815,6 @@
                                    <td className="p-3 font-medium">{log.eventName}</td>
                                    <td className="p-3">{log.salesCount}</td>
                                    <td className="p-3 text-right font-bold text-green-600 dark:text-green-400">{formatCurrency(log.totalSales)}</td>
-                                   <td className="p-3 text-center">
-                                     <button onClick={() => setViewingEvent(log)} className="bg-blue-100 text-blue-700 px-3 py-1 rounded-lg text-xs font-bold hover:bg-blue-200 transition-colors">
-                                       Ver Tudo
-                                     </button>
-                                   </td>
                                  </tr>
                                ))}
                              </tbody>
@@ -991,7 +836,6 @@
                             setEventLogs([]);
                             setCashDrawer(defaultDrawer); 
                             setActiveTab('pos');
-                            pushToFirebase({ sales: [], eventLogs: [] });
                           }
                         });
                     }} className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-xl">
@@ -1011,4 +855,4 @@
     root.render(<App />);
   </script>
 </body>
-</html>
+  </html>
