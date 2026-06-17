@@ -4,11 +4,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <link id="favicon" rel="icon" type="image/jpeg" href="https://media-gru1-1.cdn.whatsapp.net/v/t61.24694-24/489405406_650586094569182_6793834854762065392_n.jpg?ccb=11-4&oh=01_Q5Aa4wGY7p0SayjbDIPzs9zg4cRQqjwpuZWHtXDXiacRVfJnLw&oe=6A35BF57&_nc_sid=5e03e0&_nc_cat=102">
+  <!-- ESTA É A LINHA QUE VOCÊ VAI ADICIONAR -->
+  <link rel="icon" type="image/png" href="https://media-gru1-1.cdn.whatsapp.net/v/t61.24694-24/489405406_650586094569182_6793834854762065392_n.jpg?ccb=11-4&oh=01_Q5Aa4wGY7p0SayjbDIPzs9zg4cRQqjwpuZWHtXDXiacRVfJnLw&oe=6A35BF57&_nc_sid=5e03e0&_nc_cat=102">
   
   <title>PDV Profissional</title>
   
   <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- ... resto do código ... -->
+  <title>PDV Profissional</title>
+  
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -16,12 +21,8 @@
     }
   </script>
 
-  <!-- HTML2PDF para baixar relatórios -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-  <!-- Babel -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-  <!-- React e Lucide Icons -->
   <script type="importmap">
     {
       "imports": {
@@ -32,133 +33,66 @@
     }
   </script>
 </head>
-<body class="transition-colors duration-300 bg-gray-100 dark:bg-gray-950 text-gray-800 dark:text-gray-100">
+<body>
   <div id="root"></div>
 
   <script type="text/babel" data-type="module">
-    import React, { useState, useEffect, useRef } from 'react';
+    import React, { useState, useEffect } from 'react';
     import { createRoot } from 'react-dom/client';
     import { 
-      ShoppingCart, Settings, Tag, PlusCircle, MinusCircle, CheckCircle, 
-      CreditCard, Banknote, X, Edit2, Trash2, RotateCcw, LayoutDashboard, 
-      History, Printer, Download, Calculator, Lock, Sun, Moon, AlertTriangle, 
-      Info, Image, FileArchive, Flag, GripHorizontal
+      ShoppingCart, Settings, FileText, Plus, Trash2, Edit2, 
+      CreditCard, Banknote, CheckCircle, PlusCircle, MinusCircle, 
+      AlertTriangle, Moon, Sun, Printer, History, Tag, RotateCcw,
+      LayoutDashboard, Store, X
     } from 'lucide-react';
 
     function App() {
-      // --- GERENCIAMENTO DE ESTADO E LOCALSTORAGE ---
+      // --- ESTADOS BASE E ARMAZENAMENTO LOCAL ---
+      
       const loadData = (key, defaultValue) => {
         const saved = localStorage.getItem(key);
         return saved ? JSON.parse(saved) : defaultValue;
       };
 
-      const defaultSettings = { 
-        gremioName: 'Grêmio Estudantil', 
-        eventName: 'Festa Junina',
-        logoUrl: 'https://media-gru1-1.cdn.whatsapp.net/v/t61.24694-24/489405406_650586094569182_6793834854762065392_n.jpg?ccb=11-4&oh=01_Q5Aa4wGY7p0SayjbDIPzs9zg4cRQqjwpuZWHtXDXiacRVfJnLw&oe=6A35BF57&_nc_sid=5e03e0&_nc_cat=102'
-      };
-
       const [theme, setTheme] = useState(() => loadData('pdv_theme', 'light'));
-      const [settings, setSettings] = useState(() => loadData('pdv_settings', defaultSettings));
+      const [settings, setSettings] = useState(() => loadData('pdv_settings', { eventName: 'Grêmio Estudantil' }));
       const [products, setProducts] = useState(() => loadData('pdv_products', []));
       const [sales, setSales] = useState(() => loadData('pdv_sales', []));
-      const [eventLogs, setEventLogs] = useState(() => loadData('pdv_event_logs', []));
       
       const [activeTab, setActiveTab] = useState('pos'); 
       const [cart, setCart] = useState([]);
       const [cartDiscount, setCartDiscount] = useState(0);
 
-      const [cashDrawer, setCashDrawer] = useState(() => loadData('pdv_cash_drawer', {
-        200: 0, 100: 0, 50: 0, 20: 0, 10: 0, 5: 0, 2: 0, 1: 0, 0.5: 0, 0.25: 0, 0.1: 0, 0.05: 0
-      }));
-
-      // Modais Customizados
-      const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', text: '', action: null, isDanger: false });
-      const [alertDialog, setAlertDialog] = useState({ isOpen: false, title: '', text: '' });
-      const [isPixModalOpen, setIsPixModalOpen] = useState(false);
-
+      // Estados de formulário Produto
       const [editingProduct, setEditingProduct] = useState(null);
       const [prodName, setProdName] = useState('');
       const [prodPrice, setProdPrice] = useState('');
+      
+      // Feedback
       const [checkoutMsg, setCheckoutMsg] = useState('');
+
+      // Estados do Modal PIX
+      const [isPixModalOpen, setIsPixModalOpen] = useState(false);
       const [pixStudentName, setPixStudentName] = useState('');
       const [pixStudentClass, setPixStudentClass] = useState('');
 
-      // --- ESTADOS DA CALCULADORA MÓVEL ---
-      const [isCalcOpen, setIsCalcOpen] = useState(false);
-      const [calcInput, setCalcInput] = useState('');
-      const [calcPos, setCalcPos] = useState({ x: window.innerWidth - 300, y: 80 });
-      const [isDragging, setIsDragging] = useState(false);
-      const dragRef = useRef({ x: 0, y: 0 });
-
-      // Persistência
+      // Salva automaticamente quando os dados mudam
       useEffect(() => { localStorage.setItem('pdv_theme', JSON.stringify(theme)); }, [theme]);
-      useEffect(() => { 
-        localStorage.setItem('pdv_settings', JSON.stringify(settings)); 
-        document.getElementById('favicon').href = settings.logoUrl;
-      }, [settings]);
+      useEffect(() => { localStorage.setItem('pdv_settings', JSON.stringify(settings)); }, [settings]);
       useEffect(() => { localStorage.setItem('pdv_products', JSON.stringify(products)); }, [products]);
       useEffect(() => { localStorage.setItem('pdv_sales', JSON.stringify(sales)); }, [sales]);
-      useEffect(() => { localStorage.setItem('pdv_event_logs', JSON.stringify(eventLogs)); }, [eventLogs]);
-      useEffect(() => { localStorage.setItem('pdv_cash_drawer', JSON.stringify(cashDrawer)); }, [cashDrawer]);
 
-      // Aplicação do Tema Dark/Light
+      // Alterna o tema no HTML
       useEffect(() => {
         if (theme === 'dark') document.documentElement.classList.add('dark');
         else document.documentElement.classList.remove('dark');
       }, [theme]);
 
-      // Eventos globais para arrastar a calculadora
-      useEffect(() => {
-        const handleMouseMove = (e) => {
-          if (!isDragging) return;
-          setCalcPos({
-            x: e.clientX - dragRef.current.x,
-            y: e.clientY - dragRef.current.y
-          });
-        };
-        const handleMouseUp = () => setIsDragging(false);
-
-        if (isDragging) {
-          window.addEventListener('mousemove', handleMouseMove);
-          window.addEventListener('mouseup', handleMouseUp);
-        }
-        return () => {
-          window.removeEventListener('mousemove', handleMouseMove);
-          window.removeEventListener('mouseup', handleMouseUp);
-        };
-      }, [isDragging]);
-
-      // Utilitários
+      // --- UTILITÁRIOS ---
       const formatCurrency = (val) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
       const formatDate = (isoString) => new Date(isoString).toLocaleString('pt-BR');
 
-      // --- EXPORTAÇÃO E CÁLCULOS GERAIS ---
-      const getReport = () => {
-        return sales.reduce((acc, sale) => {
-          acc.total += sale.total;
-          acc.discounts += sale.discount || 0;
-          if (sale.paymentMethod === 'PIX') acc.pix += sale.total;
-          if (sale.paymentMethod === 'DINHEIRO') acc.dinheiro += sale.total;
-
-          sale.items.forEach(item => {
-            if (!acc.items[item.product.id]) acc.items[item.product.id] = { name: item.product.name, quantity: 0, total: 0 };
-            acc.items[item.product.id].quantity += item.quantity;
-            acc.items[item.product.id].total += (item.quantity * item.product.price);
-          });
-          return acc;
-        }, { total: 0, pix: 0, dinheiro: 0, discounts: 0, items: {} });
-      };
-
-      const calculateDrawerTotal = () => {
-        return Object.entries(cashDrawer).reduce((total, [value, qty]) => total + (Number(value) * Number(qty || 0)), 0);
-      };
-
-      const reportData = getReport();
-      const drawerTotal = calculateDrawerTotal();
-      const drawerDiff = drawerTotal - reportData.dinheiro;
-
-      // --- CAIXA E VENDAS ---
+      // --- LÓGICA DO PDV ---
       const addToCart = (product) => {
         setCart(prev => {
           const exists = prev.find(i => i.product.id === product.id);
@@ -178,682 +112,564 @@
       const cartSubtotal = cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
       const cartTotal = Math.max(0, cartSubtotal - cartDiscount);
 
+      // Ação quando clica no botão PIX
+      const handlePixClick = () => {
+        if (cart.length === 0) return;
+        setIsPixModalOpen(true); // Abre o modal para coletar os dados
+      };
+
+      // Confirmação final da venda (serve tanto pro modal PIX quanto botão Dinheiro)
       const processCheckout = (paymentMethod) => {
         if (cart.length === 0) return;
+
+        // Se for PIX, garante que preencheu o modal
         if (paymentMethod === 'PIX' && (!pixStudentName.trim() || !pixStudentClass.trim())) {
-          setAlertDialog({ isOpen: true, title: 'Atenção', text: 'Por favor, preencha o Nome e a Série do aluno.'});
+          alert("Por favor, preencha o Nome e a Série do aluno.");
           return;
         }
 
         const newSale = {
           id: Date.now().toString(),
-          items: [...cart], subtotal: cartSubtotal, discount: cartDiscount, total: cartTotal,
-          paymentMethod, timestamp: new Date().toISOString(),
-          studentInfo: paymentMethod === 'PIX' ? { name: pixStudentName, schoolClass: pixStudentClass } : null
+          items: [...cart],
+          subtotal: cartSubtotal,
+          discount: cartDiscount,
+          total: cartTotal,
+          paymentMethod,
+          timestamp: new Date().toISOString(),
+          // Adiciona os dados do aluno apenas se for PIX
+          studentInfo: paymentMethod === 'PIX' ? {
+            name: pixStudentName,
+            schoolClass: pixStudentClass
+          } : null
         };
 
-        setSales([newSale, ...sales]); setCart([]); setCartDiscount(0);
-        setPixStudentName(''); setPixStudentClass(''); setIsPixModalOpen(false);
+        setSales([newSale, ...sales]);
+        setCart([]);
+        setCartDiscount(0);
+        
+        // Limpa estados do modal e fecha
+        setPixStudentName('');
+        setPixStudentClass('');
+        setIsPixModalOpen(false);
 
         setCheckoutMsg(`Sucesso! ${formatCurrency(cartTotal)} via ${paymentMethod}`);
         setTimeout(() => setCheckoutMsg(''), 3000);
       };
 
       const cancelSale = (saleId) => {
-        setConfirmDialog({
-          isOpen: true, title: 'Estornar Venda', text: 'Tem certeza que deseja estornar (cancelar) esta venda? Ela será removida do histórico.', isDanger: true,
-          action: () => setSales(sales.filter(s => s.id !== saleId))
-        });
+        if(window.confirm("Tem certeza que deseja estornar (cancelar) esta venda?")) {
+          setSales(sales.filter(s => s.id !== saleId));
+        }
       };
 
-      // --- PRODUTOS ---
+      // --- LÓGICA DE PRODUTOS ---
       const saveProduct = (e) => {
         e.preventDefault();
         if (!prodName || !prodPrice) return;
+        
         const priceNum = parseFloat(prodPrice.toString().replace(',', '.'));
+
         if (editingProduct) {
           setProducts(products.map(p => p.id === editingProduct.id ? { ...p, name: prodName, price: priceNum } : p));
           setEditingProduct(null);
         } else {
           setProducts([...products, { id: Date.now().toString(), name: prodName, price: priceNum }]);
         }
-        setProdName(''); setProdPrice('');
+        setProdName('');
+        setProdPrice('');
       };
 
-      // --- EXPORTAÇÃO PDF & IMPRESSÃO (FORÇANDO MODO CLARO) ---
-      const requestPrint = () => {
-        const wasDark = document.documentElement.classList.contains('dark');
-        if (wasDark) document.documentElement.classList.remove('dark');
-        
-        setTimeout(() => {
-          window.print();
-          if (wasDark) document.documentElement.classList.add('dark');
-        }, 100);
+      const editProduct = (prod) => {
+        setEditingProduct(prod);
+        setProdName(prod.name);
+        setProdPrice(prod.price);
+        setActiveTab('products');
       };
 
-      const downloadPDF = async (elementId, filenamePrefix) => {
-        const element = document.getElementById(elementId);
-        const wasDark = document.documentElement.classList.contains('dark');
-        
-        // Força modo claro temporariamente para o PDF
-        if (wasDark) document.documentElement.classList.remove('dark');
-        
-        await new Promise(resolve => setTimeout(resolve, 100)); // Espera o CSS aplicar
-
-        const opt = {
-          margin: 10,
-          filename: `${filenamePrefix}_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`,
-          image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true },
-          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-
-        html2pdf().set(opt).from(element).save().then(() => {
-          // Restaura o modo escuro
-          if (wasDark) document.documentElement.classList.add('dark');
-        });
-      };
-
-      // --- LÓGICA DA CALCULADORA COM VÍRGULA ---
-      const handleCalcBtn = (btn) => {
-        if(btn === 'C') setCalcInput('');
-        else if(btn === '=') { 
-          try { 
-            // Substitui símbolos visuais por operadores matemáticos reais
-            let expression = calcInput.replace(/×/g, '*').replace(/÷/g, '/').replace(/,/g, '.');
-            let result = eval(expression);
-            // Retorna o resultado com vírgula se for decimal
-            setCalcInput(String(result).replace('.', ',')); 
-          } catch(e) { setCalcInput('Erro'); } 
-        } 
-        else { 
-          setCalcInput(prev => prev === 'Erro' ? btn : prev + btn); 
+      const deleteProduct = (id) => {
+        if(window.confirm("Excluir este produto do cardápio?")) {
+          setProducts(products.filter(p => p.id !== id));
+          setCart(cart.filter(item => item.product.id !== id));
         }
       };
 
-      // --- LOGS E ENCERRAMENTO DE EVENTO ---
-      const finishEvent = () => {
-        if(sales.length === 0) {
-          setAlertDialog({isOpen: true, title: 'Aviso', text: 'Não há vendas registradas para encerrar um evento.'});
-          return;
-        }
+      // --- RELATÓRIOS ---
+      const getReport = () => {
+        return sales.reduce((acc, sale) => {
+          acc.total += sale.total;
+          acc.discounts += sale.discount || 0;
+          if (sale.paymentMethod === 'PIX') acc.pix += sale.total;
+          if (sale.paymentMethod === 'DINHEIRO') acc.dinheiro += sale.total;
 
-        setConfirmDialog({
-          isOpen: true, 
-          title: 'Encerrar e Salvar Evento', 
-          text: `Deseja encerrar o evento "${settings.eventName}"? Isso salvará o faturamento nos Logs Históricos, apagará as vendas atuais e limpará a gaveta para o próximo evento.`, 
-          isDanger: true,
-          action: () => {
-            const newLog = {
-              id: Date.now().toString(),
-              date: new Date().toISOString(),
-              eventName: settings.eventName,
-              totalGross: reportData.total,
-              totalPix: reportData.pix,
-              totalCash: reportData.dinheiro,
-              drawerPhysical: drawerTotal,
-              difference: drawerDiff
-            };
-            
-            setEventLogs([newLog, ...eventLogs]);
-            setSales([]); 
-            setCashDrawer({200:0,100:0,50:0,20:0,10:0,5:0,2:0,1:0,0.5:0,0.25:0,0.1:0,0.05:0}); 
-            setActiveTab('settings');
-            setAlertDialog({isOpen: true, title: 'Sucesso', text: 'Evento encerrado com sucesso! Verifique a aba de Configurações para ver os logs.'});
-          }
-        });
+          sale.items.forEach(item => {
+            if (!acc.items[item.product.id]) {
+              acc.items[item.product.id] = { name: item.product.name, quantity: 0, total: 0 };
+            }
+            acc.items[item.product.id].quantity += item.quantity;
+            acc.items[item.product.id].total += (item.quantity * item.product.price);
+          });
+          return acc;
+        }, { total: 0, pix: 0, dinheiro: 0, discounts: 0, items: {} });
       };
 
+      const handlePrint = () => window.print();
+
+      // --- COMPONENTES ---
       const NavItem = ({ id, icon: Icon, label }) => (
-        <button onClick={() => setActiveTab(id)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-medium ${activeTab === id ? 'bg-blue-600 text-white shadow-md' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
+        <button
+          onClick={() => setActiveTab(id)}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-medium ${
+            activeTab === id 
+              ? 'bg-blue-600 text-white shadow-md' 
+              : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+          }`}
+        >
           <Icon size={20} /> <span className="hidden md:block">{label}</span>
         </button>
       );
 
-      // Componente reutilizável de Assinaturas
-      const SignaturesSection = () => (
-        <div className="mt-24 pt-8 flex flex-col md:flex-row justify-between text-center text-sm font-semibold text-gray-800 print:text-black gap-12 print:gap-8">
-          <div className="flex-1">
-            <div className="border-t-2 border-gray-400 print:border-black mx-2 pt-2">
-              <p>Operador de Caixa</p>
-            </div>
-          </div>
-          <div className="flex-1">
-            <div className="border-t-2 border-gray-400 print:border-black mx-2 pt-2">
-              <p>Coordenador Financeiro</p>
-            </div>
-          </div>
-          <div className="flex-1">
-            <div className="border-t-2 border-gray-400 print:border-black mx-2 pt-2">
-              <p>Coordenador Geral</p>
-            </div>
-          </div>
-        </div>
-      );
+      const reportData = getReport();
 
       return (
-        <div className="min-h-screen flex w-full font-sans">
+        <div className={`min-h-screen flex transition-colors duration-300 ${theme === 'dark' ? 'dark bg-gray-950' : 'bg-gray-100'}`}>
           
-          {/* ================= MODAIS ESCONDIDOS ================= */}
-          
-          {/* Alerta Simples */}
-          {alertDialog.isOpen && (
-            <div className="absolute inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm print:hidden">
-              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-sm p-6 animate-in zoom-in-95">
-                <div className="flex items-center gap-3 mb-4 text-blue-600 dark:text-blue-400">
-                  <Info size={28}/> <h3 className="text-xl font-bold">{alertDialog.title}</h3>
-                </div>
-                <p className="text-gray-700 dark:text-gray-300 mb-6">{alertDialog.text}</p>
-                <button onClick={() => setAlertDialog({isOpen: false})} className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-colors">
-                  Entendi
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Confirmação (Sim/Não) */}
-          {confirmDialog.isOpen && (
-            <div className="absolute inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm print:hidden">
-              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-sm p-6 animate-in zoom-in-95">
-                <div className={`flex items-center gap-3 mb-4 ${confirmDialog.isDanger ? 'text-red-500' : 'text-blue-600 dark:text-blue-400'}`}>
-                  {confirmDialog.isDanger ? <AlertTriangle size={28}/> : <Info size={28}/>} 
-                  <h3 className="text-xl font-bold">{confirmDialog.title}</h3>
-                </div>
-                <p className="text-gray-700 dark:text-gray-300 mb-6">{confirmDialog.text}</p>
-                <div className="flex gap-3">
-                  <button onClick={() => setConfirmDialog({...confirmDialog, isOpen: false})} className="flex-1 py-3 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-xl font-bold hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
-                    Cancelar
-                  </button>
-                  <button onClick={() => { confirmDialog.action(); setConfirmDialog({...confirmDialog, isOpen: false}); }} className={`flex-1 py-3 text-white rounded-xl font-bold transition-colors ${confirmDialog.isDanger ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}>
-                    Confirmar
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Calculadora Flutuante Móvel */}
-          {isCalcOpen && (
-            <div 
-              style={{ left: calcPos.x, top: calcPos.y, position: 'fixed' }}
-              className="z-[90] bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 w-64 print:hidden"
-            >
-              <div 
-                className="flex justify-between items-center mb-3 cursor-move bg-gray-100 dark:bg-gray-900 -mx-4 -mt-4 p-3 rounded-t-2xl border-b dark:border-gray-700"
-                onMouseDown={(e) => {
-                  setIsDragging(true);
-                  dragRef.current = { x: e.clientX - calcPos.x, y: e.clientY - calcPos.y };
-                }}
-              >
-                <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-                  <GripHorizontal size={16}/>
-                  <span className="font-bold text-gray-700 dark:text-gray-200 text-sm select-none">Calculadora</span>
-                </div>
-                <button onClick={() => setIsCalcOpen(false)} className="text-gray-500 hover:text-red-500"><X size={18}/></button>
-              </div>
-              
-              <div className="bg-gray-100 dark:bg-gray-900 p-3 rounded-xl text-right text-2xl font-mono mb-3 overflow-hidden border dark:border-gray-700 select-none">
-                {calcInput || '0'}
-              </div>
-              <div className="grid grid-cols-4 gap-2">
-                {['7','8','9','÷','4','5','6','×','1','2','3','-','C','0',',','+'].map(btn => (
-                  <button key={btn} onClick={() => handleCalcBtn(btn)} className={`p-3 rounded-lg font-bold text-lg transition-colors ${btn === 'C' ? 'bg-red-500 text-white hover:bg-red-600' : ['÷','×','-','+'].includes(btn) ? 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600' : 'bg-gray-50 dark:bg-gray-800 border dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>{btn}</button>
-                ))}
-                <button onClick={() => handleCalcBtn('=')} className="col-span-4 p-3 rounded-lg font-bold text-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors">=</button>
-              </div>
-            </div>
-          )}
-
-          {/* Modal PIX */}
-          {isPixModalOpen && (
-            <div className="absolute inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm print:hidden">
-              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95">
-                <div className="flex justify-between items-center p-4 border-b dark:border-gray-700 bg-teal-50 dark:bg-teal-900/30">
-                  <h3 className="font-bold text-teal-800 dark:text-teal-400 flex items-center gap-2"><CreditCard size={20} /> Dados do PIX</h3>
-                  <button onClick={() => setIsPixModalOpen(false)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400"><X size={20} /></button>
-                </div>
-                <div className="p-6 space-y-4">
-                  <div className="text-center mb-6">
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Cobrar no PIX:</p>
-                    <p className="text-3xl font-black text-teal-600 dark:text-teal-400">{formatCurrency(cartTotal)}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold mb-1">Nome do Aluno</label>
-                    <input type="text" value={pixStudentName} onChange={e => setPixStudentName(e.target.value)} placeholder="Ex: João da Silva" className="w-full p-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-600 rounded-xl outline-none" autoFocus />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold mb-1">Série / Turma</label>
-                    <input type="text" value={pixStudentClass} onChange={e => setPixStudentClass(e.target.value)} placeholder="Ex: 3º Ano B" className="w-full p-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-600 rounded-xl outline-none" />
-                  </div>
-                </div>
-                <div className="p-4 flex gap-3 bg-gray-50 dark:bg-gray-800/80">
-                  <button onClick={() => setIsPixModalOpen(false)} className="flex-1 py-3 bg-gray-200 dark:bg-gray-700 rounded-xl font-bold hover:bg-gray-300">Cancelar</button>
-                  <button onClick={() => processCheckout('PIX')} className="flex-1 py-3 bg-teal-500 text-white rounded-xl font-bold hover:bg-teal-600">Confirmar</button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ================= BARRA LATERAL ================= */}
-          <aside className="w-20 md:w-64 border-r dark:border-gray-800 flex flex-col p-4 shadow-sm print:hidden transition-all duration-300 z-10 shrink-0 h-screen overflow-y-auto bg-white dark:bg-gray-900">
-            <div className="flex flex-col items-center md:items-start md:flex-row gap-3 px-2 mb-8 mt-2 text-blue-600 dark:text-blue-500">
-              <img src={settings.logoUrl} alt="Logo" className="w-10 h-10 rounded-full object-cover border-2 border-current shrink-0" />
-              <div className="hidden md:block overflow-hidden">
-                <h1 className="text-sm font-black uppercase text-gray-500 dark:text-gray-400 tracking-wider truncate">{settings.gremioName}</h1>
-                <h2 className="text-lg font-bold tracking-tight truncate text-gray-800 dark:text-gray-100">{settings.eventName}</h2>
-              </div>
+          {/* SIDEBAR */}
+          <aside className="w-20 md:w-64 bg-white dark:bg-gray-900 border-r dark:border-gray-800 flex flex-col p-4 shadow-sm print:hidden transition-all duration-300 z-10">
+            <div className="flex items-center gap-3 px-2 mb-8 mt-2 text-blue-600 dark:text-blue-500">
+              <Store size={32} className="shrink-0" />
+              <h1 className="text-xl font-bold tracking-tight hidden md:block overflow-hidden text-ellipsis whitespace-nowrap">
+                {settings.eventName}
+              </h1>
             </div>
 
             <nav className="flex-1 space-y-2">
               <NavItem id="pos" icon={ShoppingCart} label="Caixa (PDV)" />
               <NavItem id="products" icon={Tag} label="Cardápio" />
-              <NavItem id="history" icon={History} label="Histórico Atual" />
-              <NavItem id="report" icon={LayoutDashboard} label="Relatório de Vendas" />
-              <NavItem id="closing" icon={Lock} label="Fechamento (Gaveta)" />
+              <NavItem id="history" icon={History} label="Histórico" />
+              <NavItem id="report" icon={LayoutDashboard} label="Relatório" />
             </nav>
 
-            <div className="mt-auto space-y-2 pt-4 border-t border-gray-200 dark:border-gray-800">
-              <button onClick={() => setIsCalcOpen(!isCalcOpen)} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                <Calculator size={20}/> <span className="hidden md:block font-medium">Calculadora</span>
-              </button>
+            <div className="mt-auto space-y-2 pt-4 border-t dark:border-gray-800">
               <NavItem id="settings" icon={Settings} label="Configurações" />
-              <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+              <button 
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              >
                 {theme === 'dark' ? <Sun size={20}/> : <Moon size={20}/>}
-                <span className="hidden md:block font-medium capitalize">Modo {theme === 'dark' ? 'Claro' : 'Escuro'}</span>
+                <span className="hidden md:block font-medium">Tema {theme === 'dark' ? 'Claro' : 'Escuro'}</span>
               </button>
             </div>
           </aside>
 
-          {/* ================= ÁREA DE CONTEÚDO PRINCIPAL ================= */}
+          {/* CONTEÚDO PRINCIPAL */}
           <main className="flex-1 flex flex-col h-screen overflow-hidden print:h-auto print:overflow-visible relative">
-            <div className="flex-1 overflow-y-auto p-4 md:p-6 print:p-0">
-              
-              {/* === CAIXA (PDV) === */}
-              {activeTab === 'pos' && (
-                <div className="flex flex-col lg:flex-row gap-6 h-full print:hidden">
-                  <div className="flex-1 flex flex-col">
-                    <div className="flex justify-between items-center mb-4">
-                      <h2 className="text-2xl font-bold">Frente de Caixa</h2>
-                      <span className="text-sm text-gray-500">{products.length} produtos</span>
+            
+            {/* Modal PIX (Sobreposto) */}
+            {isPixModalOpen && (
+              <div className="absolute inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm print:hidden">
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                  <div className="flex justify-between items-center p-4 border-b dark:border-gray-700 bg-teal-50 dark:bg-teal-900/30">
+                    <h3 className="font-bold text-teal-800 dark:text-teal-400 flex items-center gap-2">
+                      <CreditCard size={20} /> Identificação do PIX
+                    </h3>
+                    <button onClick={() => setIsPixModalOpen(false)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                      <X size={20} />
+                    </button>
+                  </div>
+                  
+                  <div className="p-6 space-y-4">
+                    <div className="text-center mb-6">
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Total a cobrar no PIX:</p>
+                      <p className="text-3xl font-black text-teal-600 dark:text-teal-400">{formatCurrency(cartTotal)}</p>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4 overflow-y-auto pb-4 pr-2">
-                      {products.map(p => (
-                        <button key={p.id} onClick={() => addToCart(p)} className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl p-4 flex flex-col items-center justify-center text-center shadow-sm hover:border-blue-400 transition-all active:scale-95 group">
-                          <span className="font-semibold mb-2 group-hover:text-blue-500">{p.name}</span>
-                          <span className="text-blue-700 dark:text-blue-300 font-bold bg-blue-50 dark:bg-blue-900/30 px-3 py-1 rounded-lg">{formatCurrency(p.price)}</span>
-                        </button>
-                      ))}
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Nome do Aluno</label>
+                      <input 
+                        type="text" 
+                        value={pixStudentName} 
+                        onChange={e => setPixStudentName(e.target.value)} 
+                        placeholder="Ex: João da Silva" 
+                        className="w-full p-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-600 rounded-xl text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-teal-500 outline-none"
+                        autoFocus
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Série / Turma</label>
+                      <input 
+                        type="text" 
+                        value={pixStudentClass} 
+                        onChange={e => setPixStudentClass(e.target.value)} 
+                        placeholder="Ex: 3º Ano B" 
+                        className="w-full p-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-600 rounded-xl text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-teal-500 outline-none"
+                      />
                     </div>
                   </div>
 
+                  <div className="p-4 border-t dark:border-gray-700 flex gap-3 bg-gray-50 dark:bg-gray-800/80">
+                    <button 
+                      onClick={() => setIsPixModalOpen(false)}
+                      className="flex-1 py-3 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl font-bold hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                    <button 
+                      onClick={() => processCheckout('PIX')}
+                      disabled={!pixStudentName.trim() || !pixStudentClass.trim()}
+                      className="flex-1 py-3 bg-teal-500 text-white rounded-xl font-bold hover:bg-teal-600 disabled:opacity-50 transition-colors flex justify-center items-center gap-2"
+                    >
+                      <CheckCircle size={20}/> Confirmar Venda
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <header className="bg-white dark:bg-gray-900 border-b dark:border-gray-800 p-4 shadow-sm print:hidden flex justify-between items-center md:hidden">
+              <h1 className="font-bold text-gray-800 dark:text-white truncate">{settings.eventName}</h1>
+            </header>
+
+            <div className="flex-1 overflow-y-auto p-4 md:p-6 print:p-0">
+              
+              {/* ================= ABA: CAIXA (PDV) ================= */}
+              {activeTab === 'pos' && (
+                <div className="flex flex-col lg:flex-row gap-6 h-full print:hidden">
+                  {/* Grid de Produtos */}
+                  <div className="flex-1 flex flex-col">
+                    <div className="flex justify-between items-center mb-4">
+                      <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Frente de Caixa</h2>
+                      <span className="text-sm text-gray-500 dark:text-gray-400">{products.length} produtos</span>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4 overflow-y-auto pb-4 pr-2">
+                      {products.map(p => (
+                        <button
+                          key={p.id}
+                          onClick={() => addToCart(p)}
+                          className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl p-4 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md hover:border-blue-400 dark:hover:border-blue-500 transition-all active:scale-95 group"
+                        >
+                          <span className="font-semibold text-gray-800 dark:text-gray-200 mb-2 group-hover:text-blue-600 dark:group-hover:text-blue-400">{p.name}</span>
+                          <span className="text-blue-700 dark:text-blue-300 font-bold bg-blue-50 dark:bg-blue-900/30 px-3 py-1 rounded-lg">
+                            {formatCurrency(p.price)}
+                          </span>
+                        </button>
+                      ))}
+                      {products.length === 0 && (
+                        <div className="col-span-full py-12 text-center bg-white dark:bg-gray-800 rounded-2xl border border-dashed dark:border-gray-700">
+                          <p className="text-gray-500 dark:text-gray-400">Cardápio vazio.</p>
+                          <button onClick={() => setActiveTab('products')} className="mt-2 text-blue-600 font-medium hover:underline">Ir para Produtos</button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Carrinho */}
                   <div className="w-full lg:w-96 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl shadow-sm flex flex-col h-[600px] lg:h-full shrink-0">
                     <div className="p-4 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 rounded-t-2xl">
-                      <h3 className="text-lg font-bold flex justify-between items-center">
+                      <h3 className="text-lg font-bold text-gray-800 dark:text-white flex justify-between items-center">
                         Comanda Atual
-                        <span className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs px-2 py-1 rounded-full">{cart.reduce((sum, i) => sum + i.quantity, 0)} itens</span>
+                        <span className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs px-2 py-1 rounded-full">
+                          {cart.reduce((sum, i) => sum + i.quantity, 0)} itens
+                        </span>
                       </h3>
                     </div>
+
                     <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                      {cart.map(item => (
-                        <div key={item.product.id} className="flex justify-between items-center bg-gray-50 dark:bg-gray-700/30 p-3 rounded-xl border dark:border-gray-700">
-                          <div className="flex-1 pr-2">
-                            <p className="font-semibold text-sm">{item.product.name}</p>
-                            <p className="text-xs text-gray-500">{formatCurrency(item.product.price)}</p>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <div className="flex items-center bg-white dark:bg-gray-800 rounded-lg border dark:border-gray-600 shadow-sm">
-                              <button onClick={() => removeFromCart(item.product.id)} className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30"><MinusCircle size={16}/></button>
-                              <span className="w-6 text-center font-bold text-sm">{item.quantity}</span>
-                              <button onClick={() => addToCart(item.product)} className="p-1.5 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30"><PlusCircle size={16}/></button>
-                            </div>
-                            <div className="font-bold text-sm w-16 text-right">{formatCurrency(item.product.price * item.quantity)}</div>
-                          </div>
+                      {cart.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 space-y-2">
+                          <ShoppingCart size={48} className="opacity-20" />
+                          <p>Adicione itens para vender</p>
                         </div>
-                      ))}
+                      ) : (
+                        cart.map(item => (
+                          <div key={item.product.id} className="flex justify-between items-center bg-gray-50 dark:bg-gray-700/30 p-3 rounded-xl border dark:border-gray-700">
+                            <div className="flex-1 pr-2">
+                              <p className="font-semibold text-sm text-gray-800 dark:text-gray-200">{item.product.name}</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">{formatCurrency(item.product.price)}</p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <div className="flex items-center bg-white dark:bg-gray-800 rounded-lg border dark:border-gray-600 shadow-sm">
+                                <button onClick={() => removeFromCart(item.product.id)} className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-l-lg transition-colors"><MinusCircle size={16}/></button>
+                                <span className="w-6 text-center font-bold text-sm text-gray-800 dark:text-gray-200">{item.quantity}</span>
+                                <button onClick={() => addToCart(item.product)} className="p-1.5 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-r-lg transition-colors"><PlusCircle size={16}/></button>
+                              </div>
+                              <div className="font-bold text-sm w-16 text-right text-gray-800 dark:text-gray-200">
+                                {formatCurrency(item.product.price * item.quantity)}
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
                     </div>
+
+                    {/* Área de Finalização */}
                     <div className="p-4 bg-gray-50 dark:bg-gray-800/80 border-t dark:border-gray-700 rounded-b-2xl">
+                      
                       <div className="flex justify-between items-center mb-3">
-                        <span className="text-sm font-medium">Desconto (R$):</span>
-                        <input type="number" min="0" step="0.5" value={cartDiscount || ''} onChange={e => setCartDiscount(Number(e.target.value))} className="w-24 text-right p-1 border dark:border-gray-600 rounded bg-white dark:bg-gray-700 outline-none" placeholder="0.00" />
+                        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Desconto (R$):</span>
+                        <input 
+                          type="number" min="0" step="0.5" 
+                          value={cartDiscount || ''} 
+                          onChange={e => setCartDiscount(Number(e.target.value))}
+                          className="w-24 text-right p-1 text-sm border dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100"
+                          placeholder="0.00"
+                        />
                       </div>
+
                       <div className="flex justify-between items-end mb-4">
-                        <span className="font-medium">Total a Pagar:</span>
+                        <span className="text-gray-600 dark:text-gray-400 font-medium">Total a Pagar:</span>
                         <div className="text-right">
                           {cartDiscount > 0 && <span className="text-sm text-gray-400 line-through block">{formatCurrency(cartSubtotal)}</span>}
                           <span className="text-3xl font-black text-blue-600 dark:text-blue-400">{formatCurrency(cartTotal)}</span>
                         </div>
                       </div>
-                      {checkoutMsg && <div className="mb-4 bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 p-3 rounded-xl text-sm font-medium flex justify-center gap-2 animate-pulse"><CheckCircle size={18} /> {checkoutMsg}</div>}
+
+                      {checkoutMsg && (
+                        <div className="mb-4 bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 p-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2 animate-pulse">
+                          <CheckCircle size={18} /> {checkoutMsg}
+                        </div>
+                      )}
+
                       <div className="grid grid-cols-2 gap-2">
-                        <button onClick={() => processCheckout('DINHEIRO')} disabled={cart.length===0} className="bg-emerald-500 hover:bg-emerald-600 text-white py-3 rounded-xl font-bold flex flex-col items-center justify-center gap-1 active:scale-95 disabled:opacity-50"><Banknote size={20} /> <span className="text-xs">Dinheiro</span></button>
-                        <button onClick={handlePixClick} disabled={cart.length===0} className="bg-teal-500 hover:bg-teal-600 text-white py-3 rounded-xl font-bold flex flex-col items-center justify-center gap-1 active:scale-95 disabled:opacity-50"><CreditCard size={20} /> <span className="text-xs">PIX</span></button>
+                        <button onClick={() => processCheckout('DINHEIRO')} disabled={cart.length===0} className="bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white py-3 rounded-xl font-bold flex flex-col items-center justify-center gap-1 transition-transform active:scale-95">
+                          <Banknote size={20} /> <span className="text-xs">Dinheiro</span>
+                        </button>
+                        <button onClick={handlePixClick} disabled={cart.length===0} className="bg-teal-500 hover:bg-teal-600 disabled:opacity-50 text-white py-3 rounded-xl font-bold flex flex-col items-center justify-center gap-1 transition-transform active:scale-95">
+                          <CreditCard size={20} /> <span className="text-xs">PIX</span>
+                        </button>
                       </div>
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* === CARDÁPIO (PRODUTOS) === */}
+              {/* ================= ABA: PRODUTOS ================= */}
               {activeTab === 'products' && (
                 <div className="max-w-4xl mx-auto print:hidden">
-                  <h2 className="text-2xl font-bold mb-6">Gerenciar Cardápio</h2>
+                  <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">Gerenciar Cardápio</h2>
+                  
                   <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 overflow-hidden mb-8">
+                    <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border-b dark:border-gray-700">
+                      <h3 className="font-semibold text-blue-800 dark:text-blue-300 flex items-center gap-2">
+                        {editingProduct ? <Edit2 size={18}/> : <PlusCircle size={18}/>} 
+                        {editingProduct ? 'Editando Produto' : 'Novo Produto'}
+                      </h3>
+                    </div>
                     <form onSubmit={saveProduct} className="p-5 flex flex-col md:flex-row gap-4 items-end">
                       <div className="flex-1 w-full">
-                        <label className="block text-sm font-semibold mb-1">Nome do Produto</label>
-                        <input type="text" value={prodName} onChange={e => setProdName(e.target.value)} required className="w-full p-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-700 rounded-xl outline-none" />
+                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Nome do Produto</label>
+                        <input type="text" value={prodName} onChange={e => setProdName(e.target.value)} required placeholder="Ex: Refrigerante Lata" className="w-full p-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-700 rounded-xl text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none" />
                       </div>
                       <div className="w-full md:w-40">
-                        <label className="block text-sm font-semibold mb-1">Preço (R$)</label>
-                        <input type="number" step="0.01" min="0" value={prodPrice} onChange={e => setProdPrice(e.target.value)} required className="w-full p-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-700 rounded-xl outline-none" />
+                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Preço (R$)</label>
+                        <input type="number" step="0.01" min="0" value={prodPrice} onChange={e => setProdPrice(e.target.value)} required placeholder="0.00" className="w-full p-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-700 rounded-xl text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none" />
                       </div>
-                      <div className="flex gap-2">
-                        {editingProduct && <button type="button" onClick={() => {setEditingProduct(null); setProdName(''); setProdPrice('');}} className="p-3 bg-gray-200 dark:bg-gray-700 rounded-xl font-bold">Cancelar</button>}
-                        <button type="submit" className="p-3 bg-blue-600 text-white rounded-xl font-bold flex items-center gap-2"><CheckCircle size={20} /> Salvar</button>
+                      <div className="flex gap-2 w-full md:w-auto">
+                        {editingProduct && (
+                          <button type="button" onClick={() => {setEditingProduct(null); setProdName(''); setProdPrice('');}} className="p-3 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                            Cancelar
+                          </button>
+                        )}
+                        <button type="submit" className="flex-1 md:flex-none p-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2">
+                          <CheckCircle size={20} /> Salvar
+                        </button>
                       </div>
                     </form>
                   </div>
+
                   <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 overflow-hidden">
                     <table className="w-full text-left border-collapse">
                       <thead>
-                        <tr className="bg-gray-50 dark:bg-gray-900/50 border-b dark:border-gray-700 text-sm text-gray-500">
-                          <th className="p-4">Produto</th><th className="p-4 w-32">Preço</th><th className="p-4 w-24 text-center">Ações</th>
+                        <tr className="bg-gray-50 dark:bg-gray-900/50 border-b dark:border-gray-700 text-gray-600 dark:text-gray-400 text-sm">
+                          <th className="p-4 font-semibold">Produto</th>
+                          <th className="p-4 font-semibold w-32">Preço</th>
+                          <th className="p-4 font-semibold w-24 text-center">Ações</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y dark:divide-gray-700">
                         {products.map(p => (
-                          <tr key={p.id}>
-                            <td className="p-4 font-medium">{p.name}</td>
+                          <tr key={p.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                            <td className="p-4 font-medium text-gray-800 dark:text-gray-200">{p.name}</td>
                             <td className="p-4 font-bold text-green-600 dark:text-green-400">{formatCurrency(p.price)}</td>
                             <td className="p-4 flex justify-center gap-2">
-                              <button onClick={() => {setEditingProduct(p); setProdName(p.name); setProdPrice(p.price);}} className="p-2 text-blue-500 bg-blue-50 dark:bg-blue-900/30 rounded-lg"><Edit2 size={18}/></button>
-                              <button onClick={() => setConfirmDialog({isOpen: true, title: 'Excluir Produto', text: 'Deseja excluir este produto definitivamente?', isDanger: true, action: () => { setProducts(products.filter(item => item.id !== p.id)); setCart(cart.filter(item => item.product.id !== p.id)); }})} className="p-2 text-red-500 bg-red-50 dark:bg-red-900/30 rounded-lg"><Trash2 size={18}/></button>
+                              <button onClick={() => editProduct(p)} className="p-2 text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg"><Edit2 size={18}/></button>
+                              <button onClick={() => deleteProduct(p.id)} className="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg"><Trash2 size={18}/></button>
                             </td>
                           </tr>
                         ))}
+                        {products.length === 0 && <tr><td colSpan="3" className="p-8 text-center text-gray-500">Nenhum produto cadastrado.</td></tr>}
                       </tbody>
                     </table>
                   </div>
                 </div>
               )}
 
-              {/* === HISTÓRICO DE VENDAS === */}
+              {/* ================= ABA: HISTÓRICO DE VENDAS ================= */}
               {activeTab === 'history' && (
                 <div className="max-w-4xl mx-auto print:hidden">
-                  <h2 className="text-2xl font-bold mb-6">Histórico Atual do Evento</h2>
-                  {sales.length === 0 ? (
-                     <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 text-center text-gray-500 dark:text-gray-400 border dark:border-gray-700 shadow-sm">Nenhuma transação registrada neste evento ainda.</div>
-                  ) : (
-                    <div className="space-y-4">
-                      {sales.map(sale => (
-                        <div key={sale.id} className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl p-5 flex flex-col md:flex-row justify-between items-start md:items-center shadow-sm">
+                  <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">Histórico de Transações</h2>
+                  
+                  <div className="space-y-4">
+                    {sales.length === 0 ? (
+                      <div className="p-8 text-center bg-white dark:bg-gray-800 rounded-2xl border dark:border-gray-700 text-gray-500">Nenhuma venda registrada no evento atual.</div>
+                    ) : (
+                      sales.map(sale => (
+                        <div key={sale.id} className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl p-5 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center shadow-sm">
                           <div>
-                            <div className="flex gap-3 mb-2">
-                              <span className={`px-2 py-1 rounded text-xs font-bold ${sale.paymentMethod === 'PIX' ? 'bg-teal-100 dark:bg-teal-900/50 text-teal-800 dark:text-teal-300' : 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300'}`}>{sale.paymentMethod}</span>
-                              <span className="text-sm text-gray-500">{formatDate(sale.timestamp)}</span>
-                              {sale.studentInfo && <span className="text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-md">👤 {sale.studentInfo.name} ({sale.studentInfo.schoolClass})</span>}
+                            <div className="flex flex-wrap items-center gap-3 mb-2">
+                              <span className={`px-2 py-1 rounded text-xs font-bold ${
+                                sale.paymentMethod === 'PIX' ? 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200' :
+                                'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200'
+                              }`}>
+                                {sale.paymentMethod}
+                              </span>
+                              <span className="text-sm text-gray-500 dark:text-gray-400">{formatDate(sale.timestamp)}</span>
+                              
+                              {/* Exibe Nome e Série se for PIX */}
+                              {sale.studentInfo && (
+                                <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 rounded-md flex items-center gap-1 border dark:border-gray-600">
+                                  👤 {sale.studentInfo.name} ({sale.studentInfo.schoolClass})
+                                </span>
+                              )}
                             </div>
-                            <p className="text-sm">{sale.items.map(i => `${i.quantity}x ${i.product.name}`).join(' • ')}</p>
+                            <p className="text-sm text-gray-600 dark:text-gray-300">
+                              {sale.items.map(i => `${i.quantity}x ${i.product.name}`).join(' • ')}
+                            </p>
+                            {sale.discount > 0 && <p className="text-xs text-red-500 mt-1">Desconto aplicado: {formatCurrency(sale.discount)}</p>}
                           </div>
-                          <div className="flex items-center gap-4 mt-3 md:mt-0">
-                            <span className="text-xl font-black">{formatCurrency(sale.total)}</span>
-                            <button onClick={() => cancelSale(sale.id)} className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 p-2 rounded-xl text-sm font-semibold flex items-center gap-2 transition-colors"><RotateCcw size={16} /> Estornar</button>
+                          
+                          <div className="flex items-center gap-4 w-full md:w-auto justify-between border-t md:border-0 pt-3 md:pt-0 dark:border-gray-700">
+                            <span className="text-xl font-black text-gray-800 dark:text-gray-100">{formatCurrency(sale.total)}</span>
+                            <button onClick={() => cancelSale(sale.id)} className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 p-2 rounded-xl flex items-center gap-2 text-sm font-semibold transition-colors" title="Estornar/Cancelar Venda">
+                              <RotateCcw size={16} /> Estornar
+                            </button>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  )}
+                      ))
+                    )}
+                  </div>
                 </div>
               )}
 
-              {/* === ABA: RELATÓRIO DE VENDAS === */}
+              {/* ================= ABA: RELATÓRIO ================= */}
               {(activeTab === 'report') && (
                 <div className="max-w-4xl mx-auto">
-                  <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 mb-6 flex flex-col md:flex-row justify-between items-center gap-4 print:hidden">
-                    <div>
-                      <h2 className="text-xl font-bold">Resumo de Vendas</h2>
-                      <p className="text-sm text-gray-500">Dados gerados pelo sistema em tempo real</p>
+                  <div className="hidden print:block text-center mb-8 border-b-2 border-black pb-4">
+                    <h1 className="text-3xl font-black uppercase">{settings.eventName}</h1>
+                    <p className="text-xl mt-1">Fechamento de Caixa</p>
+                    <p className="text-sm mt-2 text-gray-600">Impresso em: {formatDate(new Date().toISOString())}</p>
+                  </div>
+
+                  <div className="flex justify-between items-center mb-6 print:hidden">
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Visão Geral</h2>
+                    <button onClick={handlePrint} className="bg-gray-800 dark:bg-gray-200 text-white dark:text-gray-900 px-4 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-gray-700 dark:hover:bg-white transition-colors shadow-sm">
+                      <Printer size={18} /> Imprimir Relatório
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                    <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm border border-l-4 border-l-blue-500 dark:border-gray-700">
+                      <p className="text-gray-500 dark:text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">Faturamento Bruto</p>
+                      <p className="text-2xl font-black text-gray-800 dark:text-white print:text-black">{formatCurrency(reportData.total)}</p>
                     </div>
-                    <div className="flex gap-3 w-full md:w-auto">
-                      <button onClick={requestPrint} className="flex-1 md:flex-none justify-center bg-gray-800 hover:bg-gray-700 dark:bg-gray-600 dark:hover:bg-gray-500 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-colors">
-                        <Printer size={18} /> Imprimir
-                      </button>
-                      <button onClick={() => downloadPDF('report-pdf-content', 'Relatorio_Vendas')} className="flex-1 md:flex-none justify-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-colors">
-                        <Download size={18} /> Baixar PDF
-                      </button>
+                    <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm border border-l-4 border-l-teal-500 dark:border-gray-700">
+                      <p className="text-gray-500 dark:text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">Total PIX</p>
+                      <p className="text-2xl font-black text-gray-800 dark:text-white print:text-black">{formatCurrency(reportData.pix)}</p>
+                    </div>
+                    <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm border border-l-4 border-l-emerald-500 dark:border-gray-700">
+                      <p className="text-gray-500 dark:text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">Total Dinheiro</p>
+                      <p className="text-2xl font-black text-gray-800 dark:text-white print:text-black">{formatCurrency(reportData.dinheiro)}</p>
                     </div>
                   </div>
 
-                  <div id="report-pdf-content" className="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 print:border-none print:shadow-none space-y-8 print:bg-white print:text-black">
-                    <div className="flex items-center justify-between border-b-2 border-gray-200 dark:border-gray-700 print:border-black pb-6">
-                      <img src={settings.logoUrl} alt="Logo" className="w-20 h-20 rounded-full object-cover border" />
-                      <div className="text-right">
-                        <h1 className="text-2xl font-black uppercase text-gray-800 dark:text-gray-100 print:text-black">{settings.gremioName}</h1>
-                        <h2 className="text-lg text-gray-600 dark:text-gray-300 print:text-black">{settings.eventName}</h2>
-                        <p className="text-sm mt-1 text-gray-500 print:text-gray-600">Relatório Geral de Vendas</p>
-                        <p className="text-xs mt-1 text-gray-400 print:text-gray-500">Gerado em: {formatDate(new Date().toISOString())}</p>
-                      </div>
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 overflow-hidden print:border-black print:shadow-none">
+                    <div className="p-4 bg-gray-50 dark:bg-gray-900 border-b dark:border-gray-700 print:bg-white print:border-black">
+                      <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 print:text-black">Quantidades Vendidas</h3>
                     </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="bg-gray-50 dark:bg-gray-900 print:bg-white p-5 rounded-xl border-l-4 border-l-blue-500 print:border-black">
-                        <p className="text-xs font-bold uppercase text-gray-500 mb-1">Faturamento Bruto</p>
-                        <p className="text-2xl font-black print:text-black">{formatCurrency(reportData.total)}</p>
-                      </div>
-                      <div className="bg-gray-50 dark:bg-gray-900 print:bg-white p-5 rounded-xl border-l-4 border-l-teal-500 print:border-black">
-                        <p className="text-xs font-bold uppercase text-gray-500 mb-1">Total via PIX</p>
-                        <p className="text-2xl font-black print:text-black">{formatCurrency(reportData.pix)}</p>
-                      </div>
-                      <div className="bg-gray-50 dark:bg-gray-900 print:bg-white p-5 rounded-xl border-l-4 border-l-emerald-500 print:border-black">
-                        <p className="text-xs font-bold uppercase text-gray-500 mb-1">Total Dinheiro Vivo</p>
-                        <p className="text-2xl font-black print:text-black">{formatCurrency(reportData.dinheiro)}</p>
-                      </div>
-                    </div>
-
-                    <div>
-                      <h3 className="text-lg font-bold border-b border-gray-200 dark:border-gray-700 pb-2 mb-4 print:text-black print:border-black">Detalhamento de Produtos</h3>
-                      <table className="w-full text-left">
-                        <thead className="text-xs uppercase text-gray-500 border-b print:border-black">
-                          <tr><th className="py-2">Produto</th><th className="py-2 text-center">Qtd Vendida</th><th className="py-2 text-right">Receita Total</th></tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700 print:text-black print:divide-gray-300">
-                          {Object.values(reportData.items).map((item, idx) => (
+                    <table className="w-full text-left">
+                      <thead className="text-xs uppercase text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 border-b dark:border-gray-700">
+                        <tr>
+                          <th className="p-4">Produto</th>
+                          <th className="p-4 text-center">Qtd</th>
+                          <th className="p-4 text-right">Receita</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y dark:divide-gray-700 print:text-black">
+                        {Object.values(reportData.items)
+                          .sort((a, b) => b.quantity - a.quantity)
+                          .map((item, idx) => (
                             <tr key={idx}>
-                              <td className="py-2 font-medium">{item.name}</td>
-                              <td className="py-2 text-center font-bold text-blue-600 print:text-black">{item.quantity}</td>
-                              <td className="py-2 text-right font-medium">{formatCurrency(item.total)}</td>
+                              <td className="p-4 font-medium text-gray-800 dark:text-gray-200 print:text-black">{item.name}</td>
+                              <td className="p-4 text-center font-bold text-blue-600 dark:text-blue-400 print:text-black">{item.quantity}</td>
+                              <td className="p-4 text-right font-medium text-gray-600 dark:text-gray-300 print:text-black">{formatCurrency(item.total)}</td>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    <SignaturesSection />
-                  </div>
-                </div>
-              )}
-
-              {/* === ABA: FECHAMENTO DE GAVETA === */}
-              {(activeTab === 'closing') && (
-                <div className="max-w-4xl mx-auto">
-                  <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 mb-6 flex flex-col md:flex-row justify-between items-center gap-4 print:hidden">
-                    <div>
-                      <h2 className="text-xl font-bold">Fechamento Físico de Caixa</h2>
-                      <p className="text-sm text-gray-500">Conferência de cédulas e moedas</p>
-                    </div>
-                    <div className="flex gap-3 w-full md:w-auto">
-                      <button onClick={requestPrint} className="flex-1 md:flex-none justify-center bg-gray-800 hover:bg-gray-700 dark:bg-gray-600 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2">
-                        <Printer size={18} /> Imprimir
-                      </button>
-                      <button onClick={() => downloadPDF('closing-pdf-content', 'Fechamento_Gaveta')} className="flex-1 md:flex-none justify-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2">
-                        <Download size={18} /> Baixar PDF
-                      </button>
+                        ))}
+                        {Object.keys(reportData.items).length === 0 && <tr><td colSpan="3" className="p-8 text-center text-gray-500">Nenhuma venda registrada.</td></tr>}
+                      </tbody>
+                    </table>
+                    <div className="p-4 bg-gray-50 dark:bg-gray-900 border-t dark:border-gray-700 text-sm text-gray-600 dark:text-gray-400 print:bg-white print:border-black print:text-black text-right">
+                      Descontos concedidos: <strong className="text-red-500">{formatCurrency(reportData.discounts)}</strong>
                     </div>
                   </div>
-
-                  <div id="closing-pdf-content" className="bg-emerald-50 dark:bg-gray-800 p-6 md:p-8 rounded-2xl shadow-sm border border-emerald-200 dark:border-gray-700 print:border-none print:shadow-none space-y-8 print:bg-white print:text-black">
-                    <div className="flex items-center justify-between border-b-2 border-emerald-200 dark:border-gray-700 print:border-black pb-6">
-                      <img src={settings.logoUrl} alt="Logo" className="w-20 h-20 rounded-full object-cover border border-emerald-200" />
-                      <div className="text-right">
-                        <h1 className="text-2xl font-black uppercase text-emerald-900 dark:text-emerald-100 print:text-black">{settings.gremioName}</h1>
-                        <h2 className="text-lg text-emerald-800 dark:text-emerald-300 print:text-black">{settings.eventName}</h2>
-                        <p className="text-sm mt-1 text-emerald-700 dark:text-emerald-400 print:text-gray-600">Relatório de Fechamento de Gaveta</p>
-                        <p className="text-xs mt-1 text-emerald-600 dark:text-emerald-500 print:text-gray-500">Gerado em: {formatDate(new Date().toISOString())}</p>
-                      </div>
-                    </div>
-                    
-                    <div className="print:hidden">
-                      <div className="bg-white dark:bg-gray-900 p-5 rounded-xl border border-emerald-200 dark:border-gray-700 shadow-sm mb-6">
-                        <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2">
-                          <Banknote size={18} className="text-emerald-600"/> Preencha a quantidade exata de cada nota/moeda física existente na gaveta:
-                        </p>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                          {Object.keys(cashDrawer).sort((a,b)=>b-a).map(val => (
-                            <div key={val} className="flex items-center justify-between bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-600 p-2 rounded-lg">
-                              <span className="text-xs font-bold text-gray-600 dark:text-gray-300">R$ {Number(val).toFixed(2)}</span>
-                              <input 
-                                type="number" min="0" step="1" 
-                                value={cashDrawer[val] || ''} 
-                                onChange={(e) => setCashDrawer({...cashDrawer, [val]: Number(e.target.value)})}
-                                className="w-16 p-1 text-center bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded outline-none font-mono font-bold"
-                                placeholder="0"
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col md:flex-row justify-between items-center bg-white dark:bg-gray-900 print:bg-gray-100 p-6 rounded-xl shadow-sm border border-emerald-200 dark:border-gray-700 print:border-black">
-                      <div className="text-center md:text-left mb-4 md:mb-0">
-                        <p className="text-xs uppercase font-bold text-gray-500">Valor Físico Contado</p>
-                        <p className="text-3xl font-black text-emerald-600 print:text-black">{formatCurrency(drawerTotal)}</p>
-                      </div>
-                      
-                      <div className="text-center">
-                        <p className="text-xs uppercase font-bold text-gray-500">Registrado no Sistema</p>
-                        <p className="text-xl font-bold text-gray-700 dark:text-gray-300 print:text-black">{formatCurrency(reportData.dinheiro)}</p>
-                      </div>
-
-                      <div className="text-center md:text-right mt-4 md:mt-0">
-                        <p className="text-xs uppercase font-bold text-gray-500">Diferença de Caixa</p>
-                        {drawerDiff === 0 ? (
-                          <p className="text-2xl font-bold text-green-600 print:text-black">Bateu Perfeito (+R$ 0,00)</p>
-                        ) : drawerDiff > 0 ? (
-                          <p className="text-2xl font-bold text-blue-600 print:text-black">Sobra: {formatCurrency(drawerDiff)}</p>
-                        ) : (
-                          <p className="text-2xl font-bold text-red-600 print:text-black">Falta (Quebra): {formatCurrency(Math.abs(drawerDiff))}</p>
-                        )}
-                      </div>
-                    </div>
-
-                    <SignaturesSection />
-                  </div>
-                </div>
-              )}
-
-              {/* === ABA: CONFIGURAÇÕES E LOGS === */}
-              {activeTab === 'settings' && (
-                <div className="max-w-4xl mx-auto print:hidden space-y-8">
-                  <h2 className="text-2xl font-bold mb-2">Configurações e Logs</h2>
                   
-                  {/* Seção 1: Identidade Visual */}
-                  <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 overflow-hidden">
-                    <div className="p-4 bg-gray-50 dark:bg-gray-900 border-b dark:border-gray-700 font-bold flex items-center gap-2">
-                      <Settings size={20}/> Identidade e Personalização
+                  {/* Seção Nova no Relatório: Lista de Pix para Conferência */}
+                  <div className="mt-8 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 overflow-hidden print:border-black print:shadow-none print:mt-4">
+                    <div className="p-4 bg-teal-50 dark:bg-teal-900/30 border-b dark:border-gray-700 print:bg-white print:border-black">
+                      <h3 className="text-lg font-bold text-teal-800 dark:text-teal-400 print:text-black">Conferência de PIX</h3>
                     </div>
-                    <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <label className="block text-sm font-semibold mb-2 flex items-center gap-2"><Flag size={16}/> Nome da Instituição / Grêmio</label>
-                        <input type="text" value={settings.gremioName} onChange={e => setSettings({...settings, gremioName: e.target.value})} className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-600 rounded-xl outline-none focus:border-blue-500 transition-colors" placeholder="Ex: Grêmio Estudantil Castro Alves" />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-semibold mb-2 flex items-center gap-2"><Image size={16}/> URL da Logo Customizada</label>
-                        <input type="text" value={settings.logoUrl} onChange={e => setSettings({...settings, logoUrl: e.target.value})} className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-600 rounded-xl outline-none focus:border-blue-500 transition-colors" placeholder="Link da imagem HTTP/HTTPS..." />
-                      </div>
-                      <div className="md:col-span-2">
-                        <label className="block text-sm font-semibold mb-2">Nome do Evento Atual (Aparece nos relatórios)</label>
-                        <input type="text" value={settings.eventName} onChange={e => setSettings({...settings, eventName: e.target.value})} className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-600 rounded-xl outline-none focus:border-blue-500 transition-colors" placeholder="Ex: Festa Junina 2024" />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Seção 2: Encerramento de Evento */}
-                  <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 overflow-hidden">
-                    <div className="p-4 bg-gray-50 dark:bg-gray-900 border-b dark:border-gray-700 font-bold flex items-center gap-2 text-blue-600 dark:text-blue-400">
-                      <FileArchive size={20}/> Encerrar Evento Atual
-                    </div>
-                    <div className="p-6 flex flex-col md:flex-row gap-6 items-center justify-between">
-                      <div className="text-gray-600 dark:text-gray-300 text-sm">
-                        <p className="mb-2">Ao clicar em <strong>Encerrar Evento</strong>, o sistema fará o seguinte:</p>
-                        <ul className="list-disc ml-5 space-y-1">
-                          <li>Salvará os totais financeiros (Pix, Dinheiro, Quebra de Caixa) na aba de Logs Históricos.</li>
-                          <li>Zera a comanda, o histórico atual de vendas e a gaveta.</li>
-                          <li>Prepara o sistema de forma limpa para um novo dia ou evento.</li>
-                        </ul>
-                      </div>
-                      <button onClick={finishEvent} className="shrink-0 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl flex items-center gap-2 transition-colors">
-                        <CheckCircle size={20}/> Encerrar e Salvar
-                      </button>
+                    <div className="p-4">
+                      <ul className="space-y-2 text-sm text-gray-700 dark:text-gray-300 print:text-black">
+                        {sales.filter(s => s.paymentMethod === 'PIX').length === 0 ? (
+                          <li className="text-gray-500">Nenhum pagamento via PIX registrado.</li>
+                        ) : (
+                          sales.filter(s => s.paymentMethod === 'PIX').map(sale => (
+                            <li key={sale.id} className="flex justify-between border-b dark:border-gray-700 pb-2 print:border-black">
+                              <span><strong>{sale.studentInfo?.name}</strong> ({sale.studentInfo?.schoolClass})</span>
+                              <span className="font-bold">{formatCurrency(sale.total)}</span>
+                            </li>
+                          ))
+                        )}
+                      </ul>
                     </div>
                   </div>
 
-                  {/* Seção 3: Logs Históricos */}
-                  <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 overflow-hidden">
-                    <div className="p-4 bg-gray-50 dark:bg-gray-900 border-b dark:border-gray-700 font-bold flex justify-between items-center">
-                      <div className="flex items-center gap-2"><History size={20}/> Logs de Eventos Anteriores</div>
-                      {eventLogs.length > 0 && <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">{eventLogs.length} eventos salvos</span>}
-                    </div>
-                    <div className="p-6">
-                      {eventLogs.length === 0 ? (
-                        <p className="text-gray-500 text-center py-4">Nenhum evento encerrado ainda.</p>
-                      ) : (
-                        <div className="space-y-4">
-                          {eventLogs.map(log => (
-                            <div key={log.id} className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4 flex flex-col lg:flex-row justify-between gap-4">
-                              <div>
-                                <h3 className="font-bold text-lg text-gray-800 dark:text-gray-100">{log.eventName}</h3>
-                                <p className="text-sm text-gray-500">{formatDate(log.date)}</p>
-                              </div>
-                              <div className="flex flex-wrap gap-4 text-sm">
-                                <div className="bg-white dark:bg-gray-800 p-2 rounded-lg border dark:border-gray-700">
-                                  <span className="block text-xs text-gray-500">Total Bruto</span>
-                                  <strong className="text-gray-800 dark:text-gray-200">{formatCurrency(log.totalGross)}</strong>
-                                </div>
-                                <div className="bg-white dark:bg-gray-800 p-2 rounded-lg border dark:border-gray-700">
-                                  <span className="block text-xs text-gray-500">PIX / Dinheiro Físico</span>
-                                  <strong className="text-gray-800 dark:text-gray-200">{formatCurrency(log.totalPix)} / {formatCurrency(log.drawerPhysical)}</strong>
-                                </div>
-                                <div className={`bg-white dark:bg-gray-800 p-2 rounded-lg border dark:border-gray-700 ${log.difference < 0 ? 'text-red-500' : 'text-green-500'}`}>
-                                  <span className="block text-xs text-gray-500">Diferença de Caixa</span>
-                                  <strong>{log.difference === 0 ? 'Perfeito' : formatCurrency(log.difference)}</strong>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                  <div className="hidden print:block mt-16 text-center text-sm text-gray-600">
+                    <p>_________________________________________________</p>
+                    <p className="mt-2">Assinatura do Responsável</p>
+                  </div>
+                </div>
+              )}
+
+              {/* ================= ABA: CONFIGURAÇÕES ================= */}
+              {activeTab === 'settings' && (
+                <div className="max-w-2xl mx-auto print:hidden space-y-6">
+                  <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">Configurações do Sistema</h2>
+                  
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 p-6">
+                    <h3 className="font-bold text-gray-800 dark:text-white mb-4">Informações do Evento</h3>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Nome do Grêmio ou Evento</label>
+                    <input 
+                      type="text" 
+                      value={settings.eventName} 
+                      onChange={e => setSettings({...settings, eventName: e.target.value})}
+                      className="w-full p-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-600 rounded-xl text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
                   </div>
 
-                  {/* Zona de Perigo Real */}
-                  <div className="bg-red-50 dark:bg-red-900/20 rounded-2xl border border-red-200 dark:border-red-800/50 p-6 flex items-center justify-between gap-4">
-                    <div>
-                      <h3 className="font-bold text-red-800 dark:text-red-400 mb-1 flex items-center gap-2"><AlertTriangle size={18}/> Exclusão Completa (Reset de Fábrica)</h3>
-                      <p className="text-sm text-red-600 dark:text-red-300">Isto apagará tudo: Vendas atuais, Cardápio e Histórico de Logs.</p>
-                    </div>
-                    <button onClick={() => {
-                        setConfirmDialog({
-                          isOpen: true, title: 'Resetar Tudo', text: 'Você tem certeza absoluta? Essa ação é irreversível.', isDanger: true,
-                          action: () => {
-                            setSales([]); setEventLogs([]); setProducts([]);
-                            setCashDrawer({200:0,100:0,50:0,20:0,10:0,5:0,2:0,1:0,0.5:0,0.25:0,0.1:0,0.05:0}); 
-                            setSettings(defaultSettings);
-                            setActiveTab('pos');
-                          }
-                        });
-                    }} className="shrink-0 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-xl transition-colors">
-                      Zerar o Sistema
+                  <div className="bg-red-50 dark:bg-red-900/20 rounded-2xl shadow-sm border border-red-200 dark:border-red-800/50 p-6">
+                    <h3 className="font-bold text-red-800 dark:text-red-400 mb-2 flex items-center gap-2"><AlertTriangle size={20}/> Zona de Perigo</h3>
+                    <p className="text-sm text-red-600 dark:text-red-300 mb-4">Ao encerrar o evento, todo o histórico de vendas será apagado.</p>
+                    <button 
+                      onClick={() => {
+                        if(window.confirm(`Você tem certeza absoluta?\nIsso apagará as ${sales.length} vendas registradas.`)){
+                          setSales([]);
+                          setActiveTab('pos');
+                        }
+                      }}
+                      className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-xl transition-colors"
+                    >
+                      Encerrar Evento (Zerar Vendas)
                     </button>
                   </div>
                 </div>
@@ -865,6 +681,7 @@
       );
     }
 
+    // Renderizando a aplicação
     const root = createRoot(document.getElementById('root'));
     root.render(<App />);
   </script>
