@@ -4,10 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <link rel="icon" type="image/jpeg" href="https://media-gru1-1.cdn.whatsapp.net/v/t61.24694-24/489405406_650586094569182_6793834854762065392_n.jpg?ccb=11-4&oh=01_Q5Aa4wGY7p0SayjbDIPzs9zg4cRQqjwpuZWHtXDXiacRVfJnLw&oe=6A35BF57&_nc_sid=5e03e0&_nc_cat=102">
+  <link id="favicon" rel="icon" type="image/jpeg" href="https://media-gru1-1.cdn.whatsapp.net/v/t61.24694-24/489405406_650586094569182_6793834854762065392_n.jpg?ccb=11-4&oh=01_Q5Aa4wGY7p0SayjbDIPzs9zg4cRQqjwpuZWHtXDXiacRVfJnLw&oe=6A35BF57&_nc_sid=5e03e0&_nc_cat=102">
   
-  <title>PDV Profissional Grêmio</title>
+  <title>PDV Profissional</title>
   
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -15,9 +16,12 @@
     }
   </script>
 
+  <!-- HTML2PDF para baixar relatórios -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <!-- Babel -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
+  <!-- React e Lucide Icons -->
   <script type="importmap">
     {
       "imports": {
@@ -37,8 +41,8 @@
     import { 
       ShoppingCart, Settings, Tag, PlusCircle, MinusCircle, CheckCircle, 
       CreditCard, Banknote, X, Edit2, Trash2, RotateCcw, LayoutDashboard, 
-      History, Printer, Download, Calculator, Lock, Sun, Moon, AlertTriangle, Info,
-      GripHorizontal, Archive, Image as ImageIcon
+      History, Printer, Download, Calculator, Lock, Sun, Moon, AlertTriangle, 
+      Info, Image, FileArchive, Flag, GripHorizontal
     } from 'lucide-react';
 
     function App() {
@@ -48,53 +52,54 @@
         return saved ? JSON.parse(saved) : defaultValue;
       };
 
-      const [theme, setTheme] = useState(() => loadData('pdv_theme', 'light'));
-      
       const defaultSettings = { 
-        eventName: 'Evento Atual', 
-        gremioName: 'Grêmio Estudantil',
+        gremioName: 'Grêmio Estudantil', 
+        eventName: 'Festa Junina',
         logoUrl: 'https://media-gru1-1.cdn.whatsapp.net/v/t61.24694-24/489405406_650586094569182_6793834854762065392_n.jpg?ccb=11-4&oh=01_Q5Aa4wGY7p0SayjbDIPzs9zg4cRQqjwpuZWHtXDXiacRVfJnLw&oe=6A35BF57&_nc_sid=5e03e0&_nc_cat=102'
       };
-      
-      const [settings, setSettings] = useState(() => {
-        const loaded = loadData('pdv_settings', defaultSettings);
-        return { ...defaultSettings, ...loaded };
-      });
-      
-      const [eventLogs, setEventLogs] = useState(() => loadData('pdv_event_logs', []));
+
+      const [theme, setTheme] = useState(() => loadData('pdv_theme', 'light'));
+      const [settings, setSettings] = useState(() => loadData('pdv_settings', defaultSettings));
       const [products, setProducts] = useState(() => loadData('pdv_products', []));
       const [sales, setSales] = useState(() => loadData('pdv_sales', []));
+      const [eventLogs, setEventLogs] = useState(() => loadData('pdv_event_logs', []));
       
       const [activeTab, setActiveTab] = useState('pos'); 
       const [cart, setCart] = useState([]);
       const [cartDiscount, setCartDiscount] = useState(0);
 
-      const defaultDrawer = {
+      const [cashDrawer, setCashDrawer] = useState(() => loadData('pdv_cash_drawer', {
         200: 0, 100: 0, 50: 0, 20: 0, 10: 0, 5: 0, 2: 0, 1: 0, 0.5: 0, 0.25: 0, 0.1: 0, 0.05: 0
-      };
-      const [cashDrawer, setCashDrawer] = useState(() => loadData('pdv_cash_drawer', defaultDrawer));
+      }));
 
       // Modais Customizados
-      const [isCalcOpen, setIsCalcOpen] = useState(false);
-      const [calcInput, setCalcInput] = useState('');
       const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', text: '', action: null, isDanger: false });
       const [alertDialog, setAlertDialog] = useState({ isOpen: false, title: '', text: '' });
       const [isPixModalOpen, setIsPixModalOpen] = useState(false);
-      
+
       const [editingProduct, setEditingProduct] = useState(null);
       const [prodName, setProdName] = useState('');
       const [prodPrice, setProdPrice] = useState('');
-      
       const [checkoutMsg, setCheckoutMsg] = useState('');
       const [pixStudentName, setPixStudentName] = useState('');
       const [pixStudentClass, setPixStudentClass] = useState('');
 
+      // --- ESTADOS DA CALCULADORA MÓVEL ---
+      const [isCalcOpen, setIsCalcOpen] = useState(false);
+      const [calcInput, setCalcInput] = useState('');
+      const [calcPos, setCalcPos] = useState({ x: window.innerWidth - 300, y: 80 });
+      const [isDragging, setIsDragging] = useState(false);
+      const dragRef = useRef({ x: 0, y: 0 });
+
       // Persistência
       useEffect(() => { localStorage.setItem('pdv_theme', JSON.stringify(theme)); }, [theme]);
-      useEffect(() => { localStorage.setItem('pdv_settings', JSON.stringify(settings)); }, [settings]);
-      useEffect(() => { localStorage.setItem('pdv_event_logs', JSON.stringify(eventLogs)); }, [eventLogs]);
+      useEffect(() => { 
+        localStorage.setItem('pdv_settings', JSON.stringify(settings)); 
+        document.getElementById('favicon').href = settings.logoUrl;
+      }, [settings]);
       useEffect(() => { localStorage.setItem('pdv_products', JSON.stringify(products)); }, [products]);
       useEffect(() => { localStorage.setItem('pdv_sales', JSON.stringify(sales)); }, [sales]);
+      useEffect(() => { localStorage.setItem('pdv_event_logs', JSON.stringify(eventLogs)); }, [eventLogs]);
       useEffect(() => { localStorage.setItem('pdv_cash_drawer', JSON.stringify(cashDrawer)); }, [cashDrawer]);
 
       // Aplicação do Tema Dark/Light
@@ -103,9 +108,55 @@
         else document.documentElement.classList.remove('dark');
       }, [theme]);
 
+      // Eventos globais para arrastar a calculadora
+      useEffect(() => {
+        const handleMouseMove = (e) => {
+          if (!isDragging) return;
+          setCalcPos({
+            x: e.clientX - dragRef.current.x,
+            y: e.clientY - dragRef.current.y
+          });
+        };
+        const handleMouseUp = () => setIsDragging(false);
+
+        if (isDragging) {
+          window.addEventListener('mousemove', handleMouseMove);
+          window.addEventListener('mouseup', handleMouseUp);
+        }
+        return () => {
+          window.removeEventListener('mousemove', handleMouseMove);
+          window.removeEventListener('mouseup', handleMouseUp);
+        };
+      }, [isDragging]);
+
       // Utilitários
       const formatCurrency = (val) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
       const formatDate = (isoString) => new Date(isoString).toLocaleString('pt-BR');
+
+      // --- EXPORTAÇÃO E CÁLCULOS GERAIS ---
+      const getReport = () => {
+        return sales.reduce((acc, sale) => {
+          acc.total += sale.total;
+          acc.discounts += sale.discount || 0;
+          if (sale.paymentMethod === 'PIX') acc.pix += sale.total;
+          if (sale.paymentMethod === 'DINHEIRO') acc.dinheiro += sale.total;
+
+          sale.items.forEach(item => {
+            if (!acc.items[item.product.id]) acc.items[item.product.id] = { name: item.product.name, quantity: 0, total: 0 };
+            acc.items[item.product.id].quantity += item.quantity;
+            acc.items[item.product.id].total += (item.quantity * item.product.price);
+          });
+          return acc;
+        }, { total: 0, pix: 0, dinheiro: 0, discounts: 0, items: {} });
+      };
+
+      const calculateDrawerTotal = () => {
+        return Object.entries(cashDrawer).reduce((total, [value, qty]) => total + (Number(value) * Number(qty || 0)), 0);
+      };
+
+      const reportData = getReport();
+      const drawerTotal = calculateDrawerTotal();
+      const drawerDiff = drawerTotal - reportData.dinheiro;
 
       // --- CAIXA E VENDAS ---
       const addToCart = (product) => {
@@ -127,14 +178,8 @@
       const cartSubtotal = cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
       const cartTotal = Math.max(0, cartSubtotal - cartDiscount);
 
-      const handlePixClick = () => {
-        if (cart.length === 0) return;
-        setIsPixModalOpen(true);
-      };
-
       const processCheckout = (paymentMethod) => {
         if (cart.length === 0) return;
-        
         if (paymentMethod === 'PIX' && (!pixStudentName.trim() || !pixStudentClass.trim())) {
           setAlertDialog({ isOpen: true, title: 'Atenção', text: 'Por favor, preencha o Nome e a Série do aluno.'});
           return;
@@ -156,7 +201,7 @@
 
       const cancelSale = (saleId) => {
         setConfirmDialog({
-          isOpen: true, title: 'Estornar Venda', text: 'Tem certeza que deseja estornar (cancelar) esta venda? Ela será removida do histórico atual.', isDanger: true,
+          isOpen: true, title: 'Estornar Venda', text: 'Tem certeza que deseja estornar (cancelar) esta venda? Ela será removida do histórico.', isDanger: true,
           action: () => setSales(sales.filter(s => s.id !== saleId))
         });
       };
@@ -175,120 +220,88 @@
         setProdName(''); setProdPrice('');
       };
 
-      const deleteProduct = (id) => {
-        setConfirmDialog({
-          isOpen: true, title: 'Excluir Produto', text: 'Deseja excluir este produto definitivamente do cardápio?', isDanger: true,
-          action: () => {
-            setProducts(products.filter(p => p.id !== id));
-            setCart(cart.filter(item => item.product.id !== id));
-          }
-        });
-      };
-
-      // --- EXPORTAÇÃO E CÁLCULOS ---
-      const getReport = (salesData = sales) => {
-        return salesData.reduce((acc, sale) => {
-          acc.total += sale.total;
-          acc.discounts += sale.discount || 0;
-          if (sale.paymentMethod === 'PIX') acc.pix += sale.total;
-          if (sale.paymentMethod === 'DINHEIRO') acc.dinheiro += sale.total;
-
-          sale.items.forEach(item => {
-            if (!acc.items[item.product.id]) acc.items[item.product.id] = { name: item.product.name, quantity: 0, total: 0 };
-            acc.items[item.product.id].quantity += item.quantity;
-            acc.items[item.product.id].total += (item.quantity * item.product.price);
-          });
-          return acc;
-        }, { total: 0, pix: 0, dinheiro: 0, discounts: 0, items: {} });
-      };
-
-      // Funcionalidade de Impressão (Força tema claro)
-      const executeWithLightMode = (callback) => {
+      // --- EXPORTAÇÃO PDF & IMPRESSÃO (FORÇANDO MODO CLARO) ---
+      const requestPrint = () => {
         const wasDark = document.documentElement.classList.contains('dark');
         if (wasDark) document.documentElement.classList.remove('dark');
         
         setTimeout(() => {
-          callback(() => {
-            if (wasDark) document.documentElement.classList.add('dark');
-          });
-        }, 150);
-      };
-
-      const requestPrint = () => {
-        executeWithLightMode((restoreTheme) => {
           window.print();
-          // Timeout de segurança após a janela de impressão abrir
-          setTimeout(restoreTheme, 1000); 
-        });
+          if (wasDark) document.documentElement.classList.add('dark');
+        }, 100);
       };
 
-      const downloadPDF = (elementId, filenamePrefix) => {
+      const downloadPDF = async (elementId, filenamePrefix) => {
         const element = document.getElementById(elementId);
-        executeWithLightMode((restoreTheme) => {
-          const opt = {
-            margin: 10,
-            filename: `${filenamePrefix}_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`,
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-          };
-          html2pdf().set(opt).from(element).save().then(restoreTheme);
+        const wasDark = document.documentElement.classList.contains('dark');
+        
+        // Força modo claro temporariamente para o PDF
+        if (wasDark) document.documentElement.classList.remove('dark');
+        
+        await new Promise(resolve => setTimeout(resolve, 100)); // Espera o CSS aplicar
+
+        const opt = {
+          margin: 10,
+          filename: `${filenamePrefix}_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        html2pdf().set(opt).from(element).save().then(() => {
+          // Restaura o modo escuro
+          if (wasDark) document.documentElement.classList.add('dark');
         });
       };
 
-      const calculateDrawerTotal = () => {
-        return Object.entries(cashDrawer).reduce((total, [value, qty]) => total + (Number(value) * Number(qty || 0)), 0);
-      };
-
-      // --- CALCULADORA ---
-      const calcPos = useRef({ x: window.innerWidth > 768 ? window.innerWidth - 300 : 20, y: 20 });
-      const calcRef = useRef(null);
-
-      const handleCalcDragStart = (e) => {
-        const startX = e.clientX || e.touches[0].clientX;
-        const startY = e.clientY || e.touches[0].clientY;
-        const startPosX = calcPos.current.x;
-        const startPosY = calcPos.current.y;
-
-        const onMove = (moveEvent) => {
-          const currentX = moveEvent.clientX || (moveEvent.touches && moveEvent.touches[0].clientX);
-          const currentY = moveEvent.clientY || (moveEvent.touches && moveEvent.touches[0].clientY);
-          calcPos.current = {
-            x: startPosX + (currentX - startX),
-            y: startPosY + (currentY - startY)
-          };
-          if(calcRef.current) {
-            calcRef.current.style.transform = `translate(${calcPos.current.x}px, ${calcPos.current.y}px)`;
-          }
-        };
-
-        const onEnd = () => {
-          document.removeEventListener('mousemove', onMove);
-          document.removeEventListener('mouseup', onEnd);
-          document.removeEventListener('touchmove', onMove);
-          document.removeEventListener('touchend', onEnd);
-        };
-
-        document.addEventListener('mousemove', onMove);
-        document.addEventListener('mouseup', onEnd);
-        document.addEventListener('touchmove', onMove, { passive: false });
-        document.addEventListener('touchend', onEnd);
-      };
-
+      // --- LÓGICA DA CALCULADORA COM VÍRGULA ---
       const handleCalcBtn = (btn) => {
         if(btn === 'C') setCalcInput('');
         else if(btn === '=') { 
           try { 
-            let evalStr = calcInput.replace(/×/g, '*').replace(/÷/g, '/').replace(/,/g, '.');
-            let res = eval(evalStr);
-            setCalcInput(res.toString().replace(/\./g, ',')); 
-          } catch(e) { 
-            setCalcInput('Erro'); 
-          } 
+            // Substitui símbolos visuais por operadores matemáticos reais
+            let expression = calcInput.replace(/×/g, '*').replace(/÷/g, '/').replace(/,/g, '.');
+            let result = eval(expression);
+            // Retorna o resultado com vírgula se for decimal
+            setCalcInput(String(result).replace('.', ',')); 
+          } catch(e) { setCalcInput('Erro'); } 
         } 
         else { 
           setCalcInput(prev => prev === 'Erro' ? btn : prev + btn); 
         }
+      };
+
+      // --- LOGS E ENCERRAMENTO DE EVENTO ---
+      const finishEvent = () => {
+        if(sales.length === 0) {
+          setAlertDialog({isOpen: true, title: 'Aviso', text: 'Não há vendas registradas para encerrar um evento.'});
+          return;
+        }
+
+        setConfirmDialog({
+          isOpen: true, 
+          title: 'Encerrar e Salvar Evento', 
+          text: `Deseja encerrar o evento "${settings.eventName}"? Isso salvará o faturamento nos Logs Históricos, apagará as vendas atuais e limpará a gaveta para o próximo evento.`, 
+          isDanger: true,
+          action: () => {
+            const newLog = {
+              id: Date.now().toString(),
+              date: new Date().toISOString(),
+              eventName: settings.eventName,
+              totalGross: reportData.total,
+              totalPix: reportData.pix,
+              totalCash: reportData.dinheiro,
+              drawerPhysical: drawerTotal,
+              difference: drawerDiff
+            };
+            
+            setEventLogs([newLog, ...eventLogs]);
+            setSales([]); 
+            setCashDrawer({200:0,100:0,50:0,20:0,10:0,5:0,2:0,1:0,0.5:0,0.25:0,0.1:0,0.05:0}); 
+            setActiveTab('settings');
+            setAlertDialog({isOpen: true, title: 'Sucesso', text: 'Evento encerrado com sucesso! Verifique a aba de Configurações para ver os logs.'});
+          }
+        });
       };
 
       const NavItem = ({ id, icon: Icon, label }) => (
@@ -297,12 +310,29 @@
         </button>
       );
 
-      const reportData = getReport();
-      const drawerTotal = calculateDrawerTotal();
-      const drawerDiff = drawerTotal - reportData.dinheiro;
+      // Componente reutilizável de Assinaturas
+      const SignaturesSection = () => (
+        <div className="mt-24 pt-8 flex flex-col md:flex-row justify-between text-center text-sm font-semibold text-gray-800 print:text-black gap-12 print:gap-8">
+          <div className="flex-1">
+            <div className="border-t-2 border-gray-400 print:border-black mx-2 pt-2">
+              <p>Operador de Caixa</p>
+            </div>
+          </div>
+          <div className="flex-1">
+            <div className="border-t-2 border-gray-400 print:border-black mx-2 pt-2">
+              <p>Coordenador Financeiro</p>
+            </div>
+          </div>
+          <div className="flex-1">
+            <div className="border-t-2 border-gray-400 print:border-black mx-2 pt-2">
+              <p>Coordenador Geral</p>
+            </div>
+          </div>
+        </div>
+      );
 
       return (
-        <div className="min-h-screen flex w-full">
+        <div className="min-h-screen flex w-full font-sans">
           
           {/* ================= MODAIS ESCONDIDOS ================= */}
           
@@ -342,36 +372,34 @@
             </div>
           )}
 
-          {/* Calculadora Flutuante e Móvel */}
+          {/* Calculadora Flutuante Móvel */}
           {isCalcOpen && (
             <div 
-              ref={calcRef}
-              style={{ transform: `translate(${calcPos.current.x}px, ${calcPos.current.y}px)` }}
-              className="fixed top-0 left-0 z-50 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 w-64 print:hidden animate-in fade-in overflow-hidden"
+              style={{ left: calcPos.x, top: calcPos.y, position: 'fixed' }}
+              className="z-[90] bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 w-64 print:hidden"
             >
-              {/* Header arrastável */}
               <div 
-                className="flex justify-between items-center p-3 bg-gray-100 dark:bg-gray-900 cursor-move border-b border-gray-200 dark:border-gray-700"
-                onMouseDown={handleCalcDragStart}
-                onTouchStart={handleCalcDragStart}
+                className="flex justify-between items-center mb-3 cursor-move bg-gray-100 dark:bg-gray-900 -mx-4 -mt-4 p-3 rounded-t-2xl border-b dark:border-gray-700"
+                onMouseDown={(e) => {
+                  setIsDragging(true);
+                  dragRef.current = { x: e.clientX - calcPos.x, y: e.clientY - calcPos.y };
+                }}
               >
-                <div className="flex items-center gap-2 text-gray-500">
+                <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
                   <GripHorizontal size={16}/>
-                  <span className="font-bold text-sm uppercase">Calculadora</span>
+                  <span className="font-bold text-gray-700 dark:text-gray-200 text-sm select-none">Calculadora</span>
                 </div>
                 <button onClick={() => setIsCalcOpen(false)} className="text-gray-500 hover:text-red-500"><X size={18}/></button>
               </div>
               
-              <div className="p-4">
-                <div className="bg-gray-100 dark:bg-gray-900 p-3 rounded-xl text-right text-2xl font-mono mb-3 overflow-hidden border dark:border-gray-700 h-14 flex items-center justify-end">
-                  {calcInput || '0'}
-                </div>
-                <div className="grid grid-cols-4 gap-2">
-                  {['7','8','9','÷','4','5','6','×','1','2','3','-','C','0',',','+'].map(btn => (
-                    <button key={btn} onClick={() => handleCalcBtn(btn)} className={`p-3 rounded-lg font-bold text-lg transition-colors ${btn === 'C' ? 'bg-red-500 text-white hover:bg-red-600' : ['÷','×','-','+'].includes(btn) ? 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600' : 'bg-gray-50 dark:bg-gray-800 border dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>{btn}</button>
-                  ))}
-                  <button onClick={() => handleCalcBtn('=')} className="col-span-4 p-3 bg-blue-600 text-white rounded-lg font-bold text-lg hover:bg-blue-700 transition-colors">=</button>
-                </div>
+              <div className="bg-gray-100 dark:bg-gray-900 p-3 rounded-xl text-right text-2xl font-mono mb-3 overflow-hidden border dark:border-gray-700 select-none">
+                {calcInput || '0'}
+              </div>
+              <div className="grid grid-cols-4 gap-2">
+                {['7','8','9','÷','4','5','6','×','1','2','3','-','C','0',',','+'].map(btn => (
+                  <button key={btn} onClick={() => handleCalcBtn(btn)} className={`p-3 rounded-lg font-bold text-lg transition-colors ${btn === 'C' ? 'bg-red-500 text-white hover:bg-red-600' : ['÷','×','-','+'].includes(btn) ? 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600' : 'bg-gray-50 dark:bg-gray-800 border dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>{btn}</button>
+                ))}
+                <button onClick={() => handleCalcBtn('=')} className="col-span-4 p-3 rounded-lg font-bold text-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors">=</button>
               </div>
             </div>
           )}
@@ -408,13 +436,11 @@
 
           {/* ================= BARRA LATERAL ================= */}
           <aside className="w-20 md:w-64 border-r dark:border-gray-800 flex flex-col p-4 shadow-sm print:hidden transition-all duration-300 z-10 shrink-0 h-screen overflow-y-auto bg-white dark:bg-gray-900">
-            <div className="flex items-center gap-3 px-2 mb-8 mt-2 text-blue-600 dark:text-blue-500">
-              <img src={settings.logoUrl} alt="Logo" className="w-10 h-10 rounded-full object-cover border-2 border-current shrink-0 bg-white" />
+            <div className="flex flex-col items-center md:items-start md:flex-row gap-3 px-2 mb-8 mt-2 text-blue-600 dark:text-blue-500">
+              <img src={settings.logoUrl} alt="Logo" className="w-10 h-10 rounded-full object-cover border-2 border-current shrink-0" />
               <div className="hidden md:block overflow-hidden">
-                <h1 className="text-sm font-bold tracking-tight text-ellipsis whitespace-nowrap text-gray-800 dark:text-gray-200">
-                  {settings.gremioName}
-                </h1>
-                <p className="text-xs text-blue-600 truncate">{settings.eventName}</p>
+                <h1 className="text-sm font-black uppercase text-gray-500 dark:text-gray-400 tracking-wider truncate">{settings.gremioName}</h1>
+                <h2 className="text-lg font-bold tracking-tight truncate text-gray-800 dark:text-gray-100">{settings.eventName}</h2>
               </div>
             </div>
 
@@ -541,7 +567,7 @@
                             <td className="p-4 font-bold text-green-600 dark:text-green-400">{formatCurrency(p.price)}</td>
                             <td className="p-4 flex justify-center gap-2">
                               <button onClick={() => {setEditingProduct(p); setProdName(p.name); setProdPrice(p.price);}} className="p-2 text-blue-500 bg-blue-50 dark:bg-blue-900/30 rounded-lg"><Edit2 size={18}/></button>
-                              <button onClick={() => deleteProduct(p.id)} className="p-2 text-red-500 bg-red-50 dark:bg-red-900/30 rounded-lg"><Trash2 size={18}/></button>
+                              <button onClick={() => setConfirmDialog({isOpen: true, title: 'Excluir Produto', text: 'Deseja excluir este produto definitivamente?', isDanger: true, action: () => { setProducts(products.filter(item => item.id !== p.id)); setCart(cart.filter(item => item.product.id !== p.id)); }})} className="p-2 text-red-500 bg-red-50 dark:bg-red-900/30 rounded-lg"><Trash2 size={18}/></button>
                             </td>
                           </tr>
                         ))}
@@ -554,104 +580,95 @@
               {/* === HISTÓRICO DE VENDAS === */}
               {activeTab === 'history' && (
                 <div className="max-w-4xl mx-auto print:hidden">
-                  <h2 className="text-2xl font-bold mb-6">Histórico de Transações do Evento</h2>
-                  <div className="space-y-4">
-                    {sales.length === 0 && <p className="text-gray-500">Nenhuma venda registrada neste evento ainda.</p>}
-                    {sales.map(sale => (
-                      <div key={sale.id} className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl p-5 flex flex-col md:flex-row justify-between items-start md:items-center shadow-sm">
-                        <div>
-                          <div className="flex gap-3 mb-2">
-                            <span className={`px-2 py-1 rounded text-xs font-bold ${sale.paymentMethod === 'PIX' ? 'bg-teal-100 dark:bg-teal-900/50 text-teal-800 dark:text-teal-300' : 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300'}`}>{sale.paymentMethod}</span>
-                            <span className="text-sm text-gray-500">{formatDate(sale.timestamp)}</span>
-                            {sale.studentInfo && <span className="text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-md">👤 {sale.studentInfo.name} ({sale.studentInfo.schoolClass})</span>}
+                  <h2 className="text-2xl font-bold mb-6">Histórico Atual do Evento</h2>
+                  {sales.length === 0 ? (
+                     <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 text-center text-gray-500 dark:text-gray-400 border dark:border-gray-700 shadow-sm">Nenhuma transação registrada neste evento ainda.</div>
+                  ) : (
+                    <div className="space-y-4">
+                      {sales.map(sale => (
+                        <div key={sale.id} className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl p-5 flex flex-col md:flex-row justify-between items-start md:items-center shadow-sm">
+                          <div>
+                            <div className="flex gap-3 mb-2">
+                              <span className={`px-2 py-1 rounded text-xs font-bold ${sale.paymentMethod === 'PIX' ? 'bg-teal-100 dark:bg-teal-900/50 text-teal-800 dark:text-teal-300' : 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300'}`}>{sale.paymentMethod}</span>
+                              <span className="text-sm text-gray-500">{formatDate(sale.timestamp)}</span>
+                              {sale.studentInfo && <span className="text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-md">👤 {sale.studentInfo.name} ({sale.studentInfo.schoolClass})</span>}
+                            </div>
+                            <p className="text-sm">{sale.items.map(i => `${i.quantity}x ${i.product.name}`).join(' • ')}</p>
                           </div>
-                          <p className="text-sm">{sale.items.map(i => `${i.quantity}x ${i.product.name}`).join(' • ')}</p>
+                          <div className="flex items-center gap-4 mt-3 md:mt-0">
+                            <span className="text-xl font-black">{formatCurrency(sale.total)}</span>
+                            <button onClick={() => cancelSale(sale.id)} className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 p-2 rounded-xl text-sm font-semibold flex items-center gap-2 transition-colors"><RotateCcw size={16} /> Estornar</button>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-4 mt-3 md:mt-0">
-                          <span className="text-xl font-black">{formatCurrency(sale.total)}</span>
-                          <button onClick={() => cancelSale(sale.id)} className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 p-2 rounded-xl text-sm font-semibold flex items-center gap-2 transition-colors"><RotateCcw size={16} /> Estornar</button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* === ABA: RELATÓRIO DE VENDAS === */}
               {(activeTab === 'report') && (
                 <div className="max-w-4xl mx-auto">
-                  <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 mb-6 flex justify-between items-center print:hidden">
+                  <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 mb-6 flex flex-col md:flex-row justify-between items-center gap-4 print:hidden">
                     <div>
                       <h2 className="text-xl font-bold">Resumo de Vendas</h2>
-                      <p className="text-sm text-gray-500">Dados gerados pelo sistema</p>
+                      <p className="text-sm text-gray-500">Dados gerados pelo sistema em tempo real</p>
                     </div>
-                    <div className="flex gap-3">
-                      <button onClick={requestPrint} className="bg-gray-800 hover:bg-gray-700 dark:bg-gray-600 dark:hover:bg-gray-500 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-colors">
+                    <div className="flex gap-3 w-full md:w-auto">
+                      <button onClick={requestPrint} className="flex-1 md:flex-none justify-center bg-gray-800 hover:bg-gray-700 dark:bg-gray-600 dark:hover:bg-gray-500 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-colors">
                         <Printer size={18} /> Imprimir
                       </button>
-                      <button onClick={() => downloadPDF('report-pdf-content', 'Relatorio_Vendas')} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-colors">
+                      <button onClick={() => downloadPDF('report-pdf-content', 'Relatorio_Vendas')} className="flex-1 md:flex-none justify-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-colors">
                         <Download size={18} /> Baixar PDF
                       </button>
                     </div>
                   </div>
 
-                  <div id="report-pdf-content" className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-200 print:border-none print:shadow-none space-y-8 print:bg-white !text-black text-black">
-                    <div className="text-center border-b-2 border-gray-300 pb-4 flex flex-col items-center">
-                      <img src={settings.logoUrl} alt="Logo Grêmio" className="w-16 h-16 rounded-full object-cover border-2 border-gray-300 mb-3" />
-                      <h1 className="text-3xl font-black uppercase">{settings.gremioName}</h1>
-                      <h2 className="text-xl font-bold text-gray-700 mt-1">{settings.eventName}</h2>
-                      <p className="text-lg mt-1">Relatório Geral de Vendas</p>
-                      <p className="text-sm mt-2 text-gray-600">Gerado em: {formatDate(new Date().toISOString())}</p>
+                  <div id="report-pdf-content" className="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 print:border-none print:shadow-none space-y-8 print:bg-white print:text-black">
+                    <div className="flex items-center justify-between border-b-2 border-gray-200 dark:border-gray-700 print:border-black pb-6">
+                      <img src={settings.logoUrl} alt="Logo" className="w-20 h-20 rounded-full object-cover border" />
+                      <div className="text-right">
+                        <h1 className="text-2xl font-black uppercase text-gray-800 dark:text-gray-100 print:text-black">{settings.gremioName}</h1>
+                        <h2 className="text-lg text-gray-600 dark:text-gray-300 print:text-black">{settings.eventName}</h2>
+                        <p className="text-sm mt-1 text-gray-500 print:text-gray-600">Relatório Geral de Vendas</p>
+                        <p className="text-xs mt-1 text-gray-400 print:text-gray-500">Gerado em: {formatDate(new Date().toISOString())}</p>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="bg-gray-50 print:bg-gray-50 p-5 rounded-xl border-l-4 border-l-blue-500 border border-gray-200">
-                        <p className="text-xs font-bold uppercase text-gray-600 mb-1">Bruto Total</p>
-                        <p className="text-2xl font-black">{formatCurrency(reportData.total)}</p>
+                      <div className="bg-gray-50 dark:bg-gray-900 print:bg-white p-5 rounded-xl border-l-4 border-l-blue-500 print:border-black">
+                        <p className="text-xs font-bold uppercase text-gray-500 mb-1">Faturamento Bruto</p>
+                        <p className="text-2xl font-black print:text-black">{formatCurrency(reportData.total)}</p>
                       </div>
-                      <div className="bg-gray-50 print:bg-gray-50 p-5 rounded-xl border-l-4 border-l-teal-500 border border-gray-200">
-                        <p className="text-xs font-bold uppercase text-gray-600 mb-1">Total PIX</p>
-                        <p className="text-2xl font-black">{formatCurrency(reportData.pix)}</p>
+                      <div className="bg-gray-50 dark:bg-gray-900 print:bg-white p-5 rounded-xl border-l-4 border-l-teal-500 print:border-black">
+                        <p className="text-xs font-bold uppercase text-gray-500 mb-1">Total via PIX</p>
+                        <p className="text-2xl font-black print:text-black">{formatCurrency(reportData.pix)}</p>
                       </div>
-                      <div className="bg-gray-50 print:bg-gray-50 p-5 rounded-xl border-l-4 border-l-emerald-500 border border-gray-200">
-                        <p className="text-xs font-bold uppercase text-gray-600 mb-1">Total Dinheiro</p>
-                        <p className="text-2xl font-black">{formatCurrency(reportData.dinheiro)}</p>
+                      <div className="bg-gray-50 dark:bg-gray-900 print:bg-white p-5 rounded-xl border-l-4 border-l-emerald-500 print:border-black">
+                        <p className="text-xs font-bold uppercase text-gray-500 mb-1">Total Dinheiro Vivo</p>
+                        <p className="text-2xl font-black print:text-black">{formatCurrency(reportData.dinheiro)}</p>
                       </div>
                     </div>
 
                     <div>
-                      <h3 className="text-lg font-bold border-b border-gray-300 pb-2 mb-4">Produtos Vendidos</h3>
+                      <h3 className="text-lg font-bold border-b border-gray-200 dark:border-gray-700 pb-2 mb-4 print:text-black print:border-black">Detalhamento de Produtos</h3>
                       <table className="w-full text-left">
-                        <thead className="text-xs uppercase text-gray-600 border-b border-gray-300">
-                          <tr><th className="py-2">Produto</th><th className="py-2 text-center">Qtd</th><th className="py-2 text-right">Receita</th></tr>
+                        <thead className="text-xs uppercase text-gray-500 border-b print:border-black">
+                          <tr><th className="py-2">Produto</th><th className="py-2 text-center">Qtd Vendida</th><th className="py-2 text-right">Receita Total</th></tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-200">
+                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700 print:text-black print:divide-gray-300">
                           {Object.values(reportData.items).map((item, idx) => (
                             <tr key={idx}>
                               <td className="py-2 font-medium">{item.name}</td>
-                              <td className="py-2 text-center font-bold text-blue-700">{item.quantity}</td>
-                              <td className="py-2 text-right">{formatCurrency(item.total)}</td>
+                              <td className="py-2 text-center font-bold text-blue-600 print:text-black">{item.quantity}</td>
+                              <td className="py-2 text-right font-medium">{formatCurrency(item.total)}</td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
                     </div>
 
-                    {/* ÁREA DE ASSINATURAS */}
-                    <div className="mt-20 pt-16 flex flex-col md:flex-row justify-around text-center text-sm font-semibold text-black gap-8">
-                      <div>
-                        <p>_____________________________________</p>
-                        <p className="mt-2">Coordenador Geral</p>
-                      </div>
-                      <div>
-                        <p>_____________________________________</p>
-                        <p className="mt-2">Coordenador Financeiro</p>
-                      </div>
-                      <div>
-                        <p>_____________________________________</p>
-                        <p className="mt-2">Operador de Caixa</p>
-                      </div>
-                    </div>
+                    <SignaturesSection />
                   </div>
                 </div>
               )}
@@ -659,187 +676,184 @@
               {/* === ABA: FECHAMENTO DE GAVETA === */}
               {(activeTab === 'closing') && (
                 <div className="max-w-4xl mx-auto">
-                  <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 mb-6 flex justify-between items-center print:hidden">
+                  <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 mb-6 flex flex-col md:flex-row justify-between items-center gap-4 print:hidden">
                     <div>
-                      <h2 className="text-xl font-bold">Fechamento Físico</h2>
-                      <p className="text-sm text-gray-500">Conferência da gaveta de dinheiro</p>
+                      <h2 className="text-xl font-bold">Fechamento Físico de Caixa</h2>
+                      <p className="text-sm text-gray-500">Conferência de cédulas e moedas</p>
                     </div>
-                    <div className="flex gap-3">
-                      <button onClick={requestPrint} className="bg-gray-800 hover:bg-gray-700 dark:bg-gray-600 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2">
+                    <div className="flex gap-3 w-full md:w-auto">
+                      <button onClick={requestPrint} className="flex-1 md:flex-none justify-center bg-gray-800 hover:bg-gray-700 dark:bg-gray-600 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2">
                         <Printer size={18} /> Imprimir
                       </button>
-                      <button onClick={() => downloadPDF('closing-pdf-content', 'Fechamento_Gaveta')} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2">
+                      <button onClick={() => downloadPDF('closing-pdf-content', 'Fechamento_Gaveta')} className="flex-1 md:flex-none justify-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2">
                         <Download size={18} /> Baixar PDF
                       </button>
                     </div>
                   </div>
 
-                  <div id="closing-pdf-content" className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-200 print:border-none print:shadow-none space-y-8 print:bg-white !text-black text-black">
-                    <div className="text-center border-b-2 border-gray-300 pb-4 flex flex-col items-center">
-                      <img src={settings.logoUrl} alt="Logo Grêmio" className="w-16 h-16 rounded-full object-cover border-2 border-gray-300 mb-3" />
-                      <h1 className="text-3xl font-black uppercase">{settings.gremioName}</h1>
-                      <h2 className="text-xl font-bold text-gray-700 mt-1">{settings.eventName}</h2>
-                      <p className="text-lg mt-1">Fechamento de Caixa (Gaveta)</p>
-                      <p className="text-sm mt-2 text-gray-600">Gerado em: {formatDate(new Date().toISOString())}</p>
+                  <div id="closing-pdf-content" className="bg-emerald-50 dark:bg-gray-800 p-6 md:p-8 rounded-2xl shadow-sm border border-emerald-200 dark:border-gray-700 print:border-none print:shadow-none space-y-8 print:bg-white print:text-black">
+                    <div className="flex items-center justify-between border-b-2 border-emerald-200 dark:border-gray-700 print:border-black pb-6">
+                      <img src={settings.logoUrl} alt="Logo" className="w-20 h-20 rounded-full object-cover border border-emerald-200" />
+                      <div className="text-right">
+                        <h1 className="text-2xl font-black uppercase text-emerald-900 dark:text-emerald-100 print:text-black">{settings.gremioName}</h1>
+                        <h2 className="text-lg text-emerald-800 dark:text-emerald-300 print:text-black">{settings.eventName}</h2>
+                        <p className="text-sm mt-1 text-emerald-700 dark:text-emerald-400 print:text-gray-600">Relatório de Fechamento de Gaveta</p>
+                        <p className="text-xs mt-1 text-emerald-600 dark:text-emerald-500 print:text-gray-500">Gerado em: {formatDate(new Date().toISOString())}</p>
+                      </div>
                     </div>
                     
                     <div className="print:hidden">
-                      <p className="text-sm text-gray-600 mb-4">Preencha as quantidades de cada nota/moeda física que está no caixa agora.</p>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        {Object.keys(cashDrawer).sort((a,b)=>b-a).map(val => (
-                          <div key={val} className="flex items-center justify-between bg-gray-50 border border-gray-300 p-2 rounded-lg shadow-sm">
-                            <span className="text-xs font-bold text-gray-700">R$ {Number(val).toFixed(2)}</span>
-                            <input 
-                              type="number" min="0" step="1" 
-                              value={cashDrawer[val] || ''} 
-                              onChange={(e) => setCashDrawer({...cashDrawer, [val]: Number(e.target.value)})}
-                              className="w-16 p-1 text-center bg-white border border-gray-300 rounded outline-none font-mono font-bold"
-                              placeholder="0"
-                            />
-                          </div>
-                        ))}
+                      <div className="bg-white dark:bg-gray-900 p-5 rounded-xl border border-emerald-200 dark:border-gray-700 shadow-sm mb-6">
+                        <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2">
+                          <Banknote size={18} className="text-emerald-600"/> Preencha a quantidade exata de cada nota/moeda física existente na gaveta:
+                        </p>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                          {Object.keys(cashDrawer).sort((a,b)=>b-a).map(val => (
+                            <div key={val} className="flex items-center justify-between bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-600 p-2 rounded-lg">
+                              <span className="text-xs font-bold text-gray-600 dark:text-gray-300">R$ {Number(val).toFixed(2)}</span>
+                              <input 
+                                type="number" min="0" step="1" 
+                                value={cashDrawer[val] || ''} 
+                                onChange={(e) => setCashDrawer({...cashDrawer, [val]: Number(e.target.value)})}
+                                className="w-16 p-1 text-center bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded outline-none font-mono font-bold"
+                                placeholder="0"
+                              />
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
 
-                    <div className="flex flex-col md:flex-row justify-between items-center bg-gray-50 print:bg-gray-50 p-6 rounded-xl shadow-sm border border-gray-300">
+                    <div className="flex flex-col md:flex-row justify-between items-center bg-white dark:bg-gray-900 print:bg-gray-100 p-6 rounded-xl shadow-sm border border-emerald-200 dark:border-gray-700 print:border-black">
                       <div className="text-center md:text-left mb-4 md:mb-0">
-                        <p className="text-xs uppercase font-bold text-gray-600">Valor Físico Contado</p>
-                        <p className="text-3xl font-black text-emerald-700">{formatCurrency(drawerTotal)}</p>
+                        <p className="text-xs uppercase font-bold text-gray-500">Valor Físico Contado</p>
+                        <p className="text-3xl font-black text-emerald-600 print:text-black">{formatCurrency(drawerTotal)}</p>
                       </div>
                       
                       <div className="text-center">
-                        <p className="text-xs uppercase font-bold text-gray-600">Registrado no Sistema</p>
-                        <p className="text-xl font-bold text-gray-800">{formatCurrency(reportData.dinheiro)}</p>
+                        <p className="text-xs uppercase font-bold text-gray-500">Registrado no Sistema</p>
+                        <p className="text-xl font-bold text-gray-700 dark:text-gray-300 print:text-black">{formatCurrency(reportData.dinheiro)}</p>
                       </div>
 
                       <div className="text-center md:text-right mt-4 md:mt-0">
-                        <p className="text-xs uppercase font-bold text-gray-600">Diferença de Caixa</p>
+                        <p className="text-xs uppercase font-bold text-gray-500">Diferença de Caixa</p>
                         {drawerDiff === 0 ? (
-                          <p className="text-2xl font-bold text-green-700">Bateu Perfeito (+R$ 0,00)</p>
+                          <p className="text-2xl font-bold text-green-600 print:text-black">Bateu Perfeito (+R$ 0,00)</p>
                         ) : drawerDiff > 0 ? (
-                          <p className="text-2xl font-bold text-blue-700">Sobra: {formatCurrency(drawerDiff)}</p>
+                          <p className="text-2xl font-bold text-blue-600 print:text-black">Sobra: {formatCurrency(drawerDiff)}</p>
                         ) : (
-                          <p className="text-2xl font-bold text-red-700">Falta (Quebra): {formatCurrency(Math.abs(drawerDiff))}</p>
+                          <p className="text-2xl font-bold text-red-600 print:text-black">Falta (Quebra): {formatCurrency(Math.abs(drawerDiff))}</p>
                         )}
                       </div>
                     </div>
 
-                    {/* ÁREA DE ASSINATURAS */}
-                    <div className="mt-20 pt-16 flex flex-col md:flex-row justify-around text-center text-sm font-semibold text-black gap-8">
-                      <div>
-                        <p>_____________________________________</p>
-                        <p className="mt-2">Coordenador Geral</p>
-                      </div>
-                      <div>
-                        <p>_____________________________________</p>
-                        <p className="mt-2">Coordenador Financeiro</p>
-                      </div>
-                      <div>
-                        <p>_____________________________________</p>
-                        <p className="mt-2">Operador de Caixa</p>
-                      </div>
-                    </div>
+                    <SignaturesSection />
                   </div>
                 </div>
               )}
 
-              {/* === CONFIGURAÇÕES === */}
+              {/* === ABA: CONFIGURAÇÕES E LOGS === */}
               {activeTab === 'settings' && (
-                <div className="max-w-3xl mx-auto print:hidden space-y-6">
-                  <h2 className="text-2xl font-bold mb-6">Configurações do Sistema</h2>
+                <div className="max-w-4xl mx-auto print:hidden space-y-8">
+                  <h2 className="text-2xl font-bold mb-2">Configurações e Logs</h2>
                   
-                  {/* Identidade Visual */}
-                  <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 p-6 space-y-4">
-                    <h3 className="font-bold text-lg border-b dark:border-gray-700 pb-2 flex items-center gap-2"><ImageIcon size={20}/> Identidade Visual</h3>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Seção 1: Identidade Visual */}
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 overflow-hidden">
+                    <div className="p-4 bg-gray-50 dark:bg-gray-900 border-b dark:border-gray-700 font-bold flex items-center gap-2">
+                      <Settings size={20}/> Identidade e Personalização
+                    </div>
+                    <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
-                        <label className="block text-sm font-semibold mb-2">Nome do Grêmio / Organização</label>
-                        <input type="text" value={settings.gremioName} onChange={e => setSettings({...settings, gremioName: e.target.value})} className="w-full p-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-600 rounded-xl outline-none" placeholder="Ex: Grêmio Estudantil" />
+                        <label className="block text-sm font-semibold mb-2 flex items-center gap-2"><Flag size={16}/> Nome da Instituição / Grêmio</label>
+                        <input type="text" value={settings.gremioName} onChange={e => setSettings({...settings, gremioName: e.target.value})} className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-600 rounded-xl outline-none focus:border-blue-500 transition-colors" placeholder="Ex: Grêmio Estudantil Castro Alves" />
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold mb-2">Nome do Evento Atual</label>
-                        <input type="text" value={settings.eventName} onChange={e => setSettings({...settings, eventName: e.target.value})} className="w-full p-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-600 rounded-xl outline-none" placeholder="Ex: Festa Junina 2026" />
+                        <label className="block text-sm font-semibold mb-2 flex items-center gap-2"><Image size={16}/> URL da Logo Customizada</label>
+                        <input type="text" value={settings.logoUrl} onChange={e => setSettings({...settings, logoUrl: e.target.value})} className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-600 rounded-xl outline-none focus:border-blue-500 transition-colors" placeholder="Link da imagem HTTP/HTTPS..." />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-semibold mb-2">Nome do Evento Atual (Aparece nos relatórios)</label>
+                        <input type="text" value={settings.eventName} onChange={e => setSettings({...settings, eventName: e.target.value})} className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-600 rounded-xl outline-none focus:border-blue-500 transition-colors" placeholder="Ex: Festa Junina 2024" />
                       </div>
                     </div>
+                  </div>
+
+                  {/* Seção 2: Encerramento de Evento */}
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 overflow-hidden">
+                    <div className="p-4 bg-gray-50 dark:bg-gray-900 border-b dark:border-gray-700 font-bold flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                      <FileArchive size={20}/> Encerrar Evento Atual
+                    </div>
+                    <div className="p-6 flex flex-col md:flex-row gap-6 items-center justify-between">
+                      <div className="text-gray-600 dark:text-gray-300 text-sm">
+                        <p className="mb-2">Ao clicar em <strong>Encerrar Evento</strong>, o sistema fará o seguinte:</p>
+                        <ul className="list-disc ml-5 space-y-1">
+                          <li>Salvará os totais financeiros (Pix, Dinheiro, Quebra de Caixa) na aba de Logs Históricos.</li>
+                          <li>Zera a comanda, o histórico atual de vendas e a gaveta.</li>
+                          <li>Prepara o sistema de forma limpa para um novo dia ou evento.</li>
+                        </ul>
+                      </div>
+                      <button onClick={finishEvent} className="shrink-0 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl flex items-center gap-2 transition-colors">
+                        <CheckCircle size={20}/> Encerrar e Salvar
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Seção 3: Logs Históricos */}
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 overflow-hidden">
+                    <div className="p-4 bg-gray-50 dark:bg-gray-900 border-b dark:border-gray-700 font-bold flex justify-between items-center">
+                      <div className="flex items-center gap-2"><History size={20}/> Logs de Eventos Anteriores</div>
+                      {eventLogs.length > 0 && <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">{eventLogs.length} eventos salvos</span>}
+                    </div>
+                    <div className="p-6">
+                      {eventLogs.length === 0 ? (
+                        <p className="text-gray-500 text-center py-4">Nenhum evento encerrado ainda.</p>
+                      ) : (
+                        <div className="space-y-4">
+                          {eventLogs.map(log => (
+                            <div key={log.id} className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4 flex flex-col lg:flex-row justify-between gap-4">
+                              <div>
+                                <h3 className="font-bold text-lg text-gray-800 dark:text-gray-100">{log.eventName}</h3>
+                                <p className="text-sm text-gray-500">{formatDate(log.date)}</p>
+                              </div>
+                              <div className="flex flex-wrap gap-4 text-sm">
+                                <div className="bg-white dark:bg-gray-800 p-2 rounded-lg border dark:border-gray-700">
+                                  <span className="block text-xs text-gray-500">Total Bruto</span>
+                                  <strong className="text-gray-800 dark:text-gray-200">{formatCurrency(log.totalGross)}</strong>
+                                </div>
+                                <div className="bg-white dark:bg-gray-800 p-2 rounded-lg border dark:border-gray-700">
+                                  <span className="block text-xs text-gray-500">PIX / Dinheiro Físico</span>
+                                  <strong className="text-gray-800 dark:text-gray-200">{formatCurrency(log.totalPix)} / {formatCurrency(log.drawerPhysical)}</strong>
+                                </div>
+                                <div className={`bg-white dark:bg-gray-800 p-2 rounded-lg border dark:border-gray-700 ${log.difference < 0 ? 'text-red-500' : 'text-green-500'}`}>
+                                  <span className="block text-xs text-gray-500">Diferença de Caixa</span>
+                                  <strong>{log.difference === 0 ? 'Perfeito' : formatCurrency(log.difference)}</strong>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Zona de Perigo Real */}
+                  <div className="bg-red-50 dark:bg-red-900/20 rounded-2xl border border-red-200 dark:border-red-800/50 p-6 flex items-center justify-between gap-4">
                     <div>
-                      <label className="block text-sm font-semibold mb-2">URL da Logo (Imagem)</label>
-                      <input type="url" value={settings.logoUrl} onChange={e => setSettings({...settings, logoUrl: e.target.value})} className="w-full p-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-600 rounded-xl outline-none" placeholder="https://..." />
-                      <p className="text-xs text-gray-500 mt-1">Cole o link de uma imagem para aparecer nos relatórios impressos.</p>
+                      <h3 className="font-bold text-red-800 dark:text-red-400 mb-1 flex items-center gap-2"><AlertTriangle size={18}/> Exclusão Completa (Reset de Fábrica)</h3>
+                      <p className="text-sm text-red-600 dark:text-red-300">Isto apagará tudo: Vendas atuais, Cardápio e Histórico de Logs.</p>
                     </div>
-                  </div>
-
-                  {/* Gerenciamento de Eventos (Logs) */}
-                  <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 p-6">
-                     <h3 className="font-bold text-lg border-b dark:border-gray-700 pb-2 mb-4 flex items-center gap-2"><Archive size={20}/> Gerenciamento de Eventos</h3>
-                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                       Finalizou o evento de hoje? Arquive as vendas para limpar o caixa e guardar os registros no histórico.
-                     </p>
-                     <button onClick={() => {
-                        if(sales.length === 0) return setAlertDialog({isOpen: true, title: 'Aviso', text: 'Não há vendas neste evento para arquivar.'});
-                        setConfirmDialog({
-                          isOpen: true, title: 'Arquivar Evento', text: `Deseja encerrar o evento "${settings.eventName}" e salvar os logs? O caixa será zerado para o próximo evento.`, isDanger: false,
-                          action: () => {
-                            const newLog = {
-                              id: Date.now().toString(),
-                              eventName: settings.eventName,
-                              date: new Date().toISOString(),
-                              totalSales: getReport(sales).total,
-                              salesCount: sales.length,
-                              salesData: [...sales]
-                            };
-                            setEventLogs([newLog, ...eventLogs]);
-                            setSales([]);
-                            setCashDrawer(defaultDrawer);
-                            setSettings({...settings, eventName: 'Novo Evento'});
-                            setAlertDialog({isOpen: true, title: 'Sucesso', text: 'Evento salvo nos logs e caixa zerado com sucesso!'});
-                          }
-                        });
-                     }} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl flex items-center gap-2">
-                       <Archive size={20}/> Encerrar Evento Atual e Arquivar
-                     </button>
-
-                     {/* Tabela de Logs Antigos */}
-                     {eventLogs.length > 0 && (
-                       <div className="mt-8">
-                         <h4 className="font-bold mb-3">Histórico de Eventos Anteriores</h4>
-                         <div className="overflow-x-auto">
-                           <table className="w-full text-left text-sm border dark:border-gray-700 rounded-lg overflow-hidden">
-                             <thead className="bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-400">
-                               <tr><th className="p-3">Data</th><th className="p-3">Evento</th><th className="p-3">Qtd. Vendas</th><th className="p-3 text-right">Faturamento</th></tr>
-                             </thead>
-                             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                               {eventLogs.map(log => (
-                                 <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                                   <td className="p-3">{new Date(log.date).toLocaleDateString('pt-BR')}</td>
-                                   <td className="p-3 font-medium">{log.eventName}</td>
-                                   <td className="p-3">{log.salesCount}</td>
-                                   <td className="p-3 text-right font-bold text-green-600 dark:text-green-400">{formatCurrency(log.totalSales)}</td>
-                                 </tr>
-                               ))}
-                             </tbody>
-                           </table>
-                         </div>
-                       </div>
-                     )}
-                  </div>
-
-                  {/* Zona de Perigo */}
-                  <div className="bg-red-50 dark:bg-red-900/20 rounded-2xl border border-red-200 dark:border-red-800/50 p-6">
-                    <h3 className="font-bold text-red-800 dark:text-red-400 mb-2 flex items-center gap-2"><AlertTriangle/> Zona de Perigo (Hard Reset)</h3>
-                    <p className="text-sm text-red-600 dark:text-red-300 mb-4">Isto apagará todas as vendas do evento atual, apagará o histórico de logs salvos e resetará a gaveta de dinheiro.</p>
                     <button onClick={() => {
                         setConfirmDialog({
-                          isOpen: true, title: 'Zerar Todo o Sistema', text: 'Você tem certeza absoluta? Todo o histórico atual, logs de eventos anteriores e dados da gaveta serão perdidos permanentemente.', isDanger: true,
+                          isOpen: true, title: 'Resetar Tudo', text: 'Você tem certeza absoluta? Essa ação é irreversível.', isDanger: true,
                           action: () => {
-                            setSales([]);
-                            setEventLogs([]);
-                            setCashDrawer(defaultDrawer); 
+                            setSales([]); setEventLogs([]); setProducts([]);
+                            setCashDrawer({200:0,100:0,50:0,20:0,10:0,5:0,2:0,1:0,0.5:0,0.25:0,0.1:0,0.05:0}); 
+                            setSettings(defaultSettings);
                             setActiveTab('pos');
                           }
                         });
-                    }} className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-xl">
-                      Excluir Todos os Dados e Resetar
+                    }} className="shrink-0 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-xl transition-colors">
+                      Zerar o Sistema
                     </button>
                   </div>
                 </div>
@@ -855,4 +869,4 @@
     root.render(<App />);
   </script>
 </body>
-  </html>
+</html>
