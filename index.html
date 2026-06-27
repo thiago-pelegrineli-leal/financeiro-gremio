@@ -1,312 +1,788 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Grêmio Financeiro</title>
-
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<style>
-:root{
-  --bg:#0f1220;
-  --panel:#171a2b;
-  --text:#fff;
-  --muted:#a0a0a0;
-  --primary:#4f7cff;
-  --danger:#ff4f4f;
-  --success:#2ecc71;
-}
-
-.light{
-  --bg:#f4f6fb;
-  --panel:#ffffff;
-  --text:#111;
-  --muted:#555;
-}
-
-*{margin:0;padding:0;box-sizing:border-box;font-family:Inter;}
-body{background:var(--bg);color:var(--text);display:flex;height:100vh;}
-
-.sidebar{
-  width:240px;
-  background:var(--panel);
-  padding:20px;
-}
-
-.sidebar h2{margin-bottom:20px;}
-.menu button{
-  width:100%;
-  padding:10px;
-  margin:5px 0;
-  border:none;
-  background:transparent;
-  color:var(--text);
-  cursor:pointer;
-  text-align:left;
-  border-radius:8px;
-}
-.menu button:hover{background:var(--primary);}
-
-.main{
-  flex:1;
-  padding:20px;
-  overflow:auto;
-}
-
-.card{
-  background:var(--panel);
-  padding:15px;
-  border-radius:10px;
-  margin-bottom:10px;
-}
-
-.grid{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:10px;
-}
-
-input,select{
-  width:100%;
-  padding:10px;
-  margin:5px 0;
-  border-radius:8px;
-  border:none;
-}
-
-.btn{
-  padding:10px;
-  border:none;
-  border-radius:8px;
-  cursor:pointer;
-  background:var(--primary);
-  color:#fff;
-}
-
-.btn.danger{background:var(--danger);}
-.btn.success{background:var(--success);}
-
-#popup{
-  position:fixed;
-  top:0;left:0;right:0;bottom:0;
-  background:rgba(0,0,0,0.5);
-  display:none;
-  align-items:center;
-  justify-content:center;
-}
-
-.popup-box{
-  background:var(--panel);
-  padding:20px;
-  border-radius:10px;
-  width:300px;
-}
-
-.product{
-  padding:10px;
-  background:var(--bg);
-  margin:5px 0;
-  border-radius:8px;
-  cursor:pointer;
-}
-
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDV - Sistema de Caixa</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: { extend: {} }
+        }
+    </script>
+    
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        /* Estilos específicos para impressão */
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            .print-flex { display: flex !important; }
+            body { background: white !important; color: black !important; }
+            .shadow-sm, .shadow-md, .shadow-xl { box-shadow: none !important; border: 1px solid #ccc !important; }
+            
+            /* Ajustes para economizar papel */
+            #app-container { height: auto !important; overflow: visible !important; }
+            main { overflow: visible !important; height: auto !important; }
+        }
+        .print-only { display: none; }
+        .print-flex { display: none; }
+    </style>
 </head>
+<body class="bg-gray-100 dark:bg-gray-950 text-gray-800 dark:text-gray-100 transition-colors duration-300">
 
-<body>
+    <div id="app-container" class="min-h-screen flex h-screen overflow-hidden">
+        
+        <aside class="w-20 md:w-64 bg-white dark:bg-gray-900 border-r dark:border-gray-800 flex flex-col p-4 shadow-sm no-print z-10 transition-all duration-300">
+            <div class="flex items-center gap-3 px-2 mb-8 mt-2 text-blue-600 dark:text-blue-500">
+                <i data-lucide="store" class="w-8 h-8 shrink-0"></i>
+                <h1 id="sidebar-event-name" class="text-xl font-bold tracking-tight hidden md:block overflow-hidden text-ellipsis whitespace-nowrap">
+                    PDV
+                </h1>
+            </div>
 
-<div class="sidebar">
-  <h2>💰 Grêmio</h2>
+            <nav class="flex-1 space-y-2" id="nav-menu">
+                <button onclick="navigate('pos')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-medium" data-target="pos">
+                    <i data-lucide="shopping-cart"></i> <span class="hidden md:block">Caixa (PDV)</span>
+                </button>
+                <button onclick="navigate('products')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-medium" data-target="products">
+                    <i data-lucide="tag"></i> <span class="hidden md:block">Cardápio</span>
+                </button>
+                <button onclick="navigate('history')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-medium" data-target="history">
+                    <i data-lucide="history"></i> <span class="hidden md:block">Histórico</span>
+                </button>
+                <button onclick="navigate('report')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-medium" data-target="report">
+                    <i data-lucide="layout-dashboard"></i> <span class="hidden md:block">Relatório</span>
+                </button>
+                <button onclick="navigate('closure')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-medium" data-target="closure">
+                    <i data-lucide="calculator"></i> <span class="hidden md:block">Fechamento</span>
+                </button>
+            </nav>
 
-  <div class="menu">
-    <button onclick="show('caixa')">Caixa</button>
-    <button onclick="show('produtos')">Produtos</button>
-    <button onclick="show('relatorios')">Relatórios</button>
-    <button onclick="show('config')">Configurações</button>
-  </div>
+            <div class="mt-auto space-y-2 pt-4 border-t dark:border-gray-800">
+                <button onclick="navigate('settings')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-medium" data-target="settings">
+                    <i data-lucide="settings"></i> <span class="hidden md:block">Configurações</span>
+                </button>
+                <button onclick="toggleTheme()" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                    <i id="theme-icon" data-lucide="moon"></i>
+                    <span id="theme-text" class="hidden md:block font-medium">Tema Escuro</span>
+                </button>
+            </div>
+        </aside>
 
-  <button class="btn" onclick="toggleTheme()">Tema</button>
-</div>
+        <main class="flex-1 flex flex-col h-full overflow-hidden relative">
+            
+            <header class="bg-white dark:bg-gray-900 border-b dark:border-gray-800 p-4 shadow-sm no-print flex justify-between items-center md:hidden">
+                <h1 id="mobile-event-name" class="font-bold text-gray-800 dark:text-white truncate">PDV</h1>
+            </header>
 
-<div class="main">
+            <div id="content-area" class="flex-1 overflow-y-auto p-4 md:p-6 w-full max-w-7xl mx-auto">
+                </div>
+        </main>
 
-<!-- CAIXA -->
-<div id="caixa" class="page">
-  <h2>Caixa</h2>
+        <div id="pix-modal" class="hidden absolute inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm no-print">
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden transform transition-all">
+                <div class="flex justify-between items-center p-4 border-b dark:border-gray-700 bg-teal-50 dark:bg-teal-900/30">
+                    <h3 class="font-bold text-teal-800 dark:text-teal-400 flex items-center gap-2">
+                        <i data-lucide="credit-card"></i> Identificação do PIX
+                    </h3>
+                    <button onclick="closePixModal()" class="text-gray-500 hover:text-gray-700 dark:text-gray-400">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div class="text-center mb-6">
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Total a cobrar no PIX:</p>
+                        <p id="pix-modal-total" class="text-3xl font-black text-teal-600 dark:text-teal-400">R$ 0,00</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Nome do Aluno</label>
+                        <input type="text" id="pix-name" placeholder="Ex: João da Silva" class="w-full p-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-600 rounded-xl outline-none focus:ring-2 focus:ring-teal-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Série / Turma</label>
+                        <input type="text" id="pix-class" placeholder="Ex: 3º Ano B" class="w-full p-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-600 rounded-xl outline-none focus:ring-2 focus:ring-teal-500">
+                    </div>
+                </div>
+                <div class="p-4 border-t dark:border-gray-700 flex gap-3 bg-gray-50 dark:bg-gray-800/80">
+                    <button onclick="closePixModal()" class="flex-1 py-3 bg-gray-200 dark:bg-gray-700 rounded-xl font-bold hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">Cancelar</button>
+                    <button onclick="confirmPix()" class="flex-1 py-3 bg-teal-500 text-white rounded-xl font-bold hover:bg-teal-600 transition-colors flex justify-center items-center gap-2">
+                        <i data-lucide="check-circle"></i> Confirmar
+                    </button>
+                </div>
+            </div>
+        </div>
 
-  <div class="grid">
-    <div class="card">
-      <h3>Produtos</h3>
-      <div id="listaProdutos"></div>
     </div>
 
-    <div class="card">
-      <h3>Carrinho</h3>
-      <div id="carrinho"></div>
-      <h3>Total: R$ <span id="total">0</span></h3>
-      <button class="btn success" onclick="finalizar()">Finalizar Venda</button>
-    </div>
-  </div>
-</div>
+    <script>
+        // --- DATA MANAGEMENT ---
+        const loadData = (key, defaultVal) => JSON.parse(localStorage.getItem(key)) || defaultVal;
+        const saveData = (key, val) => localStorage.setItem(key, JSON.stringify(val));
 
-<!-- PRODUTOS -->
-<div id="produtos" class="page" style="display:none">
-  <h2>Produtos</h2>
+        let state = {
+            theme: loadData('pdv_theme', 'light'),
+            activeTab: 'pos',
+            settings: loadData('pdv_settings', { 
+                eventName: 'Grêmio Estudantil Geração Consciente',
+                schoolName: 'E.E. Profº João Teixeira Sampaio',
+                developer: 'Smart Applications - Thiago'
+            }),
+            products: loadData('pdv_products', []),
+            sales: loadData('pdv_sales', []),
+            cart: [],
+            cartDiscount: 0,
+            editingProduct: null,
+            closureData: loadData('pdv_closure', {
+                notas100: 0, notas50: 0, notas20: 0, notas10: 0, notas5: 0, notas2: 0, moedas: 0
+            })
+        };
 
-  <input id="nome" placeholder="Nome">
-  <input id="preco" type="number" placeholder="Preço">
+        const formatCurrency = (val) => Number(val).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        const formatDate = (iso) => new Date(iso).toLocaleString('pt-BR');
 
-  <button class="btn" onclick="addProduto()">Adicionar</button>
+        // --- CORE FUNCTIONS ---
+        function init() {
+            applyTheme(state.theme);
+            updateHeaders();
+            navigate(state.activeTab);
+            
+            // Garantir modo claro na impressão
+            window.addEventListener('beforeprint', () => {
+                document.documentElement.setAttribute('data-pre-print-theme', state.theme);
+                document.documentElement.classList.remove('dark');
+            });
+            window.addEventListener('afterprint', () => {
+                if(document.documentElement.getAttribute('data-pre-print-theme') === 'dark') {
+                    document.documentElement.classList.add('dark');
+                }
+            });
+        }
 
-  <div id="listaProd"></div>
-</div>
+        function toggleTheme() {
+            state.theme = state.theme === 'dark' ? 'light' : 'dark';
+            saveData('pdv_theme', state.theme);
+            applyTheme(state.theme);
+        }
 
-<!-- RELATORIOS -->
-<div id="relatorios" class="page" style="display:none">
-  <h2>Relatórios</h2>
-  <div class="card">
-    <p>Total vendas: <span id="totalVendas">0</span></p>
-  </div>
-</div>
+        function applyTheme(theme) {
+            const html = document.documentElement;
+            const icon = document.getElementById('theme-icon');
+            const text = document.getElementById('theme-text');
+            
+            if (theme === 'dark') {
+                html.classList.add('dark');
+                icon.setAttribute('data-lucide', 'sun');
+                text.textContent = 'Tema Claro';
+            } else {
+                html.classList.remove('dark');
+                icon.setAttribute('data-lucide', 'moon');
+                text.textContent = 'Tema Escuro';
+            }
+            lucide.createIcons();
+        }
 
-<!-- CONFIG -->
-<div id="config" class="page" style="display:none">
-  <h2>Configurações</h2>
+        function updateHeaders() {
+            document.getElementById('sidebar-event-name').textContent = state.settings.eventName;
+            document.getElementById('mobile-event-name').textContent = state.settings.eventName;
+        }
 
-  <input id="nomeGremio" placeholder="Nome do Grêmio">
-  <button class="btn" onclick="salvarConfig()">Salvar</button>
-</div>
+        function navigate(tab) {
+            state.activeTab = tab;
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                if(btn.dataset.target === tab) {
+                    btn.classList.add('bg-blue-600', 'text-white', 'shadow-md');
+                    btn.classList.remove('text-gray-600', 'dark:text-gray-400', 'hover:bg-gray-100', 'dark:hover:bg-gray-800');
+                } else {
+                    btn.classList.remove('bg-blue-600', 'text-white', 'shadow-md');
+                    btn.classList.add('text-gray-600', 'dark:text-gray-400', 'hover:bg-gray-100', 'dark:hover:bg-gray-800');
+                }
+            });
+            renderContent();
+        }
 
-</div>
+        function renderContent() {
+            const container = document.getElementById('content-area');
+            container.innerHTML = ''; 
 
-<!-- POPUP -->
-<div id="popup">
-  <div class="popup-box">
-    <h3 id="popupTitle"></h3>
-    <p id="popupText"></p>
-    <button class="btn" onclick="closePopup()">OK</button>
-  </div>
-</div>
+            if (state.activeTab === 'pos') renderPOS(container);
+            else if (state.activeTab === 'products') renderProducts(container);
+            else if (state.activeTab === 'history') renderHistory(container);
+            else if (state.activeTab === 'report') renderReport(container);
+            else if (state.activeTab === 'closure') renderClosure(container);
+            else if (state.activeTab === 'settings') renderSettings(container);
 
-<script type="module">
-// ================= FIREBASE =================
-// coloque sua config aqui
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+            lucide.createIcons();
+        }
 
-const firebaseConfig = {
-  apiKey: "SUA_KEY",
-  authDomain: "SEU_DOMINIO",
-  projectId: "SEU_ID",
-  storageBucket: "",
-  messagingSenderId: "",
-  appId: ""
-};
+        // --- POS (CAIXA) LOGIC ---
+        function renderPOS(container) {
+            const subtotal = state.cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+            const total = Math.max(0, subtotal - state.cartDiscount);
+            const cartItemsCount = state.cart.reduce((sum, i) => sum + i.quantity, 0);
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+            let productsHTML = state.products.length === 0 
+                ? `<div class="col-span-full py-12 text-center bg-white dark:bg-gray-800 rounded-2xl border border-dashed"><p>Cardápio vazio.</p></div>`
+                : state.products.map(p => `
+                    <button onclick="addToCart('${p.id}')" class="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl p-4 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md hover:border-blue-400 transition-all active:scale-95 group">
+                        <span class="font-semibold mb-2 group-hover:text-blue-600">${p.name}</span>
+                        <span class="text-blue-700 dark:text-blue-300 font-bold bg-blue-50 dark:bg-blue-900/30 px-3 py-1 rounded-lg">${formatCurrency(p.price)}</span>
+                    </button>
+                `).join('');
 
-// ================= DADOS =================
-let produtos = [];
-let carrinho = [];
-let total = 0;
+            let cartHTML = state.cart.length === 0
+                ? `<div class="h-full flex flex-col items-center justify-center text-gray-400 space-y-2"><i data-lucide="shopping-cart" class="w-12 h-12 opacity-20"></i><p>Adicione itens</p></div>`
+                : state.cart.map(item => `
+                    <div class="flex justify-between items-center bg-gray-50 dark:bg-gray-700/30 p-3 rounded-xl border dark:border-gray-700">
+                        <div class="flex-1 pr-2">
+                            <p class="font-semibold text-sm">${item.product.name}</p>
+                            <p class="text-xs text-gray-500">${formatCurrency(item.product.price)}</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div class="flex items-center bg-white dark:bg-gray-800 rounded-lg border dark:border-gray-600 shadow-sm">
+                                <button onclick="removeFromCart('${item.product.id}')" class="p-1.5 text-red-500 hover:bg-red-50 rounded-l-lg"><i data-lucide="minus-circle" class="w-4 h-4"></i></button>
+                                <span class="w-6 text-center font-bold text-sm">${item.quantity}</span>
+                                <button onclick="addToCart('${item.product.id}')" class="p-1.5 text-blue-500 hover:bg-blue-50 rounded-r-lg"><i data-lucide="plus-circle" class="w-4 h-4"></i></button>
+                            </div>
+                            <div class="font-bold text-sm w-16 text-right">${formatCurrency(item.product.price * item.quantity)}</div>
+                        </div>
+                    </div>
+                `).join('');
 
-// ================= NAV =================
-window.show = (page)=>{
-  document.querySelectorAll('.page').forEach(p=>p.style.display='none');
-  document.getElementById(page).style.display='block';
-}
+            container.innerHTML = `
+                <div class="flex flex-col lg:flex-row gap-6 h-full no-print">
+                    <div class="flex-1 flex flex-col">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-2xl font-bold">Frente de Caixa</h2>
+                            <span class="text-sm text-gray-500">${state.products.length} produtos</span>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4 overflow-y-auto pb-4 pr-2">
+                            ${productsHTML}
+                        </div>
+                    </div>
+                    
+                    <div class="w-full lg:w-96 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl shadow-sm flex flex-col h-[600px] lg:h-full shrink-0">
+                        <div class="p-4 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 rounded-t-2xl flex justify-between">
+                            <h3 class="font-bold">Comanda Atual</h3>
+                            <span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">${cartItemsCount} itens</span>
+                        </div>
+                        <div class="flex-1 overflow-y-auto p-4 space-y-4">${cartHTML}</div>
+                        <div class="p-4 bg-gray-50 dark:bg-gray-800/80 border-t dark:border-gray-700 rounded-b-2xl">
+                            <div class="flex justify-between items-center mb-3">
+                                <span class="text-sm font-medium">Desconto (R$):</span>
+                                <input type="number" id="discount-input" min="0" step="0.5" value="${state.cartDiscount}" onchange="updateDiscount(this.value)" class="w-24 text-right p-1 text-sm border dark:border-gray-600 rounded bg-white dark:bg-gray-700">
+                            </div>
+                            <div class="flex justify-between items-end mb-4">
+                                <span class="font-medium">Total:</span>
+                                <div class="text-right">
+                                    ${state.cartDiscount > 0 ? `<span class="text-sm text-gray-400 line-through block">${formatCurrency(subtotal)}</span>` : ''}
+                                    <span class="text-3xl font-black text-blue-600 dark:text-blue-400">${formatCurrency(total)}</span>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <button onclick="checkout('DINHEIRO')" ${state.cart.length === 0 ? 'disabled' : ''} class="bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white py-3 rounded-xl font-bold flex flex-col items-center gap-1">
+                                    <i data-lucide="banknote" class="w-5 h-5"></i> <span class="text-xs">Dinheiro</span>
+                                </button>
+                                <button onclick="openPixModal()" ${state.cart.length === 0 ? 'disabled' : ''} class="bg-teal-500 hover:bg-teal-600 disabled:opacity-50 text-white py-3 rounded-xl font-bold flex flex-col items-center gap-1">
+                                    <i data-lucide="credit-card" class="w-5 h-5"></i> <span class="text-xs">PIX</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
 
-// ================= POPUP =================
-function popup(t,txt){
-  document.getElementById("popupTitle").innerText=t;
-  document.getElementById("popupText").innerText=txt;
-  document.getElementById("popup").style.display="flex";
-}
-window.closePopup=()=>popupHide();
-function popupHide(){
-  document.getElementById("popup").style.display="none";
-}
+        function addToCart(productId) {
+            const product = state.products.find(p => p.id === productId);
+            const existing = state.cart.find(i => i.product.id === productId);
+            if (existing) existing.quantity++;
+            else state.cart.push({ product, quantity: 1 });
+            renderContent();
+        }
 
-// ================= PRODUTOS =================
-window.addProduto=()=>{
-  let nome=document.getElementById("nome").value;
-  let preco=document.getElementById("preco").value;
+        function removeFromCart(productId) {
+            const existing = state.cart.find(i => i.product.id === productId);
+            if (existing.quantity === 1) state.cart = state.cart.filter(i => i.product.id !== productId);
+            else existing.quantity--;
+            renderContent();
+        }
 
-  let p={nome,preco:Number(preco)};
-  produtos.push(p);
-  renderProdutos();
-}
+        function updateDiscount(val) {
+            state.cartDiscount = Number(val) || 0;
+            renderContent();
+        }
 
-function renderProdutos(){
-  let div=document.getElementById("listaProdutos");
-  let div2=document.getElementById("listaProd");
+        // --- CHECKOUT LOGIC ---
+        function checkout(method) {
+            if (state.cart.length === 0) return;
+            const subtotal = state.cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+            const total = Math.max(0, subtotal - state.cartDiscount);
 
-  div.innerHTML="";
-  div2.innerHTML="";
+            const newSale = {
+                id: Date.now().toString(),
+                items: [...state.cart],
+                subtotal, discount: state.cartDiscount, total,
+                paymentMethod: method,
+                timestamp: new Date().toISOString(),
+                studentInfo: null
+            };
 
-  produtos.forEach((p,i)=>{
-    div.innerHTML+=`
-      <div class='product' onclick='addCarrinho(${i})'>
-        ${p.nome} - R$ ${p.preco}
-      </div>`;
+            state.sales.unshift(newSale);
+            saveData('pdv_sales', state.sales);
+            state.cart = [];
+            state.cartDiscount = 0;
+            renderContent();
+        }
 
-    div2.innerHTML+=`
-      <div class='card'>
-        ${p.nome} - R$ ${p.preco}
-      </div>`;
-  });
-}
+        function openPixModal() {
+            if (state.cart.length === 0) return;
+            const subtotal = state.cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+            document.getElementById('pix-modal-total').textContent = formatCurrency(Math.max(0, subtotal - state.cartDiscount));
+            document.getElementById('pix-modal').classList.remove('hidden');
+        }
 
-// ================= CARRINHO =================
-window.addCarrinho=(i)=>{
-  carrinho.push(produtos[i]);
-  total+=produtos[i].preco;
-  renderCarrinho();
-}
+        function closePixModal() {
+            document.getElementById('pix-modal').classList.add('hidden');
+            document.getElementById('pix-name').value = '';
+            document.getElementById('pix-class').value = '';
+        }
 
-function renderCarrinho(){
-  let div=document.getElementById("carrinho");
-  div.innerHTML="";
+        function confirmPix() {
+            const name = document.getElementById('pix-name').value;
+            const sClass = document.getElementById('pix-class').value;
+            if (!name.trim() || !sClass.trim()) return alert('Preencha Nome e Série.');
 
-  carrinho.forEach(c=>{
-    div.innerHTML+=`<div>${c.nome} - R$ ${c.preco}</div>`;
-  });
+            const subtotal = state.cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+            const total = Math.max(0, subtotal - state.cartDiscount);
 
-  document.getElementById("total").innerText=total;
-}
+            const newSale = {
+                id: Date.now().toString(),
+                items: [...state.cart],
+                subtotal, discount: state.cartDiscount, total,
+                paymentMethod: 'PIX',
+                timestamp: new Date().toISOString(),
+                studentInfo: { name, schoolClass: sClass }
+            };
 
-// ================= FINALIZAR =================
-window.finalizar=async()=>{
-  await addDoc(collection(db,"vendas"),{
-    carrinho,
-    total,
-    data:new Date()
-  });
+            state.sales.unshift(newSale);
+            saveData('pdv_sales', state.sales);
+            state.cart = [];
+            state.cartDiscount = 0;
+            closePixModal();
+            renderContent();
+        }
 
-  popup("Venda","Venda registrada com sucesso!");
-  carrinho=[];
-  total=0;
-  renderCarrinho();
-}
+        // --- PRODUCTS LOGIC ---
+        function renderProducts(container) {
+            const isEditing = state.editingProduct !== null;
+            const rows = state.products.map(p => `
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 border-b dark:border-gray-700">
+                    <td class="p-4 font-medium">${p.name}</td>
+                    <td class="p-4 font-bold text-green-600">${formatCurrency(p.price)}</td>
+                    <td class="p-4 flex gap-2 justify-end">
+                        <button onclick="editProduct('${p.id}')" class="p-2 text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg"><i data-lucide="edit-2" class="w-4 h-4"></i></button>
+                        <button onclick="deleteProduct('${p.id}')" class="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    </td>
+                </tr>
+            `).join('');
 
-// ================= CONFIG =================
-window.salvarConfig=()=>{
-  popup("Configuração","Salvo com sucesso!");
-}
+            container.innerHTML = `
+                <div class="max-w-4xl mx-auto no-print">
+                    <h2 class="text-2xl font-bold mb-6">Gerenciar Cardápio</h2>
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 overflow-hidden mb-8">
+                        <div class="p-4 bg-blue-50 dark:bg-blue-900/20 border-b dark:border-gray-700">
+                            <h3 class="font-semibold text-blue-800 dark:text-blue-300 flex items-center gap-2">
+                                <i data-lucide="${isEditing ? 'edit-2' : 'plus-circle'}" class="w-5 h-5"></i> 
+                                ${isEditing ? 'Editando Produto' : 'Novo Produto'}
+                            </h3>
+                        </div>
+                        <div class="p-5 flex flex-col md:flex-row gap-4 items-end">
+                            <div class="flex-1 w-full">
+                                <label class="block text-sm font-semibold mb-1">Nome</label>
+                                <input type="text" id="prod-name" value="${isEditing ? state.editingProduct.name : ''}" class="w-full p-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div class="w-full md:w-40">
+                                <label class="block text-sm font-semibold mb-1">Preço</label>
+                                <input type="number" step="0.01" id="prod-price" value="${isEditing ? state.editingProduct.price : ''}" class="w-full p-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div class="flex gap-2">
+                                ${isEditing ? `<button onclick="cancelEdit()" class="p-3 bg-gray-200 dark:bg-gray-700 rounded-xl font-bold">Cancelar</button>` : ''}
+                                <button onclick="saveProduct()" class="p-3 bg-blue-600 text-white rounded-xl font-bold flex items-center gap-2"><i data-lucide="check-circle" class="w-5 h-5"></i> Salvar</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 overflow-hidden">
+                        <table class="w-full text-left">
+                            <thead class="bg-gray-50 dark:bg-gray-900/50 border-b dark:border-gray-700 text-sm">
+                                <tr><th class="p-4">Produto</th><th class="p-4">Preço</th><th class="p-4 text-right">Ações</th></tr>
+                            </thead>
+                            <tbody>${rows || `<tr><td colspan="3" class="p-8 text-center text-gray-500">Nenhum produto</td></tr>`}</tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
 
-// ================= THEME =================
-window.toggleTheme=()=>{
-  document.body.classList.toggle("light");
-}
+        function saveProduct() {
+            const name = document.getElementById('prod-name').value;
+            const price = parseFloat(document.getElementById('prod-price').value.replace(',', '.'));
+            if (!name || isNaN(price)) return;
 
-// INIT
-renderProdutos();
+            if (state.editingProduct) {
+                const idx = state.products.findIndex(p => p.id === state.editingProduct.id);
+                state.products[idx] = { ...state.editingProduct, name, price };
+                state.editingProduct = null;
+            } else {
+                state.products.push({ id: Date.now().toString(), name, price });
+            }
+            saveData('pdv_products', state.products);
+            renderContent();
+        }
 
-</script>
+        function editProduct(id) {
+            state.editingProduct = state.products.find(p => p.id === id);
+            renderContent();
+        }
 
+        function cancelEdit() {
+            state.editingProduct = null;
+            renderContent();
+        }
+
+        function deleteProduct(id) {
+            if (confirm("Excluir produto?")) {
+                state.products = state.products.filter(p => p.id !== id);
+                state.cart = state.cart.filter(c => c.product.id !== id);
+                saveData('pdv_products', state.products);
+                renderContent();
+            }
+        }
+
+        // --- HISTORY LOGIC ---
+        function renderHistory(container) {
+            const list = state.sales.map(s => `
+                <div class="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl p-5 flex flex-col md:flex-row justify-between items-center shadow-sm mb-4">
+                    <div class="w-full">
+                        <div class="flex flex-wrap items-center gap-3 mb-2">
+                            <span class="px-2 py-1 rounded text-xs font-bold ${s.paymentMethod === 'PIX' ? 'bg-teal-100 text-teal-800' : 'bg-emerald-100 text-emerald-800'}">${s.paymentMethod}</span>
+                            <span class="text-sm text-gray-500">${formatDate(s.timestamp)}</span>
+                            ${s.studentInfo ? `<span class="text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded border dark:border-gray-600">👤 ${s.studentInfo.name} (${s.studentInfo.schoolClass})</span>` : ''}
+                        </div>
+                        <p class="text-sm">${s.items.map(i => `${i.quantity}x ${i.product.name}`).join(' • ')}</p>
+                    </div>
+                    <div class="flex items-center gap-4 w-full md:w-auto mt-4 md:mt-0 justify-between">
+                        <span class="text-xl font-black">${formatCurrency(s.total)}</span>
+                        <button onclick="cancelSale('${s.id}')" class="text-red-500 hover:bg-red-50 p-2 rounded-xl flex items-center gap-2 text-sm font-semibold">
+                            <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Estornar
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+
+            container.innerHTML = `
+                <div class="max-w-4xl mx-auto no-print">
+                    <h2 class="text-2xl font-bold mb-6">Histórico de Transações</h2>
+                    ${list || `<div class="p-8 text-center bg-white dark:bg-gray-800 rounded-2xl border dark:border-gray-700 text-gray-500">Nenhuma venda registrada.</div>`}
+                </div>
+            `;
+        }
+
+        function cancelSale(id) {
+            if (confirm("Estornar (cancelar) esta venda?")) {
+                state.sales = state.sales.filter(s => s.id !== id);
+                saveData('pdv_sales', state.sales);
+                renderContent();
+            }
+        }
+
+        // --- REPORT LOGIC ---
+        function getReportData() {
+            return state.sales.reduce((acc, sale) => {
+                acc.total += sale.total;
+                acc.discounts += sale.discount || 0;
+                if (sale.paymentMethod === 'PIX') acc.pix += sale.total;
+                if (sale.paymentMethod === 'DINHEIRO') acc.dinheiro += sale.total;
+
+                sale.items.forEach(item => {
+                    if (!acc.items[item.product.id]) acc.items[item.product.id] = { name: item.product.name, quantity: 0, total: 0 };
+                    acc.items[item.product.id].quantity += item.quantity;
+                    acc.items[item.product.id].total += (item.quantity * item.product.price);
+                });
+                return acc;
+            }, { total: 0, pix: 0, dinheiro: 0, discounts: 0, items: {} });
+        }
+
+        function renderReport(container) {
+            const data = getReportData();
+            
+            const rows = Object.values(data.items).sort((a,b) => b.quantity - a.quantity).map(item => `
+                <tr class="border-b dark:border-gray-700">
+                    <td class="p-4 font-medium">${item.name}</td>
+                    <td class="p-4 text-center font-bold text-blue-600">${item.quantity}</td>
+                    <td class="p-4 text-right">${formatCurrency(item.total)}</td>
+                </tr>
+            `).join('');
+
+            const pixList = state.sales.filter(s => s.paymentMethod === 'PIX').map(s => `
+                <li class="flex justify-between border-b dark:border-gray-700 pb-2">
+                    <span><strong>${s.studentInfo?.name}</strong> (${s.studentInfo?.schoolClass})</span>
+                    <span class="font-bold">${formatCurrency(s.total)}</span>
+                </li>
+            `).join('');
+
+            container.innerHTML = `
+                <div class="max-w-4xl mx-auto">
+                    <div class="print-only text-center mb-8 border-b-2 border-black pb-4">
+                        <h1 class="text-3xl font-black uppercase">${state.settings.eventName}</h1>
+                        <h2 class="text-xl">${state.settings.schoolName}</h2>
+                        <p class="text-xl mt-1">Fechamento Geral de Caixa</p>
+                        <p class="text-sm mt-2 text-gray-600">Impresso em: ${formatDate(new Date().toISOString())}</p>
+                    </div>
+
+                    <div class="flex justify-between items-center mb-6 no-print">
+                        <h2 class="text-2xl font-bold">Relatório de Vendas</h2>
+                        <button onclick="window.print()" class="bg-gray-800 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2">
+                            <i data-lucide="printer" class="w-5 h-5"></i> Imprimir
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                        <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl border-l-4 border-l-blue-500 border shadow-sm">
+                            <p class="text-xs font-bold uppercase text-gray-500">Faturamento Bruto</p>
+                            <p class="text-2xl font-black">${formatCurrency(data.total)}</p>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl border-l-4 border-l-teal-500 border shadow-sm">
+                            <p class="text-xs font-bold uppercase text-gray-500">Total PIX</p>
+                            <p class="text-2xl font-black">${formatCurrency(data.pix)}</p>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl border-l-4 border-l-emerald-500 border shadow-sm">
+                            <p class="text-xs font-bold uppercase text-gray-500">Total Dinheiro</p>
+                            <p class="text-2xl font-black">${formatCurrency(data.dinheiro)}</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 overflow-hidden mb-8">
+                        <div class="p-4 bg-gray-50 dark:bg-gray-900 border-b dark:border-gray-700"><h3 class="font-bold">Quantidades Vendidas</h3></div>
+                        <table class="w-full text-left">
+                            <thead class="text-xs uppercase bg-gray-50 dark:bg-gray-800 border-b dark:border-gray-700">
+                                <tr><th class="p-4">Produto</th><th class="p-4 text-center">Qtd</th><th class="p-4 text-right">Receita</th></tr>
+                            </thead>
+                            <tbody>${rows || `<tr><td colspan="3" class="p-8 text-center">Sem vendas</td></tr>`}</tbody>
+                        </table>
+                        <div class="p-4 bg-gray-50 dark:bg-gray-900 text-right text-sm">
+                            Descontos: <strong class="text-red-500">${formatCurrency(data.discounts)}</strong>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 overflow-hidden">
+                        <div class="p-4 bg-teal-50 dark:bg-teal-900/30 border-b dark:border-gray-700"><h3 class="font-bold text-teal-800 dark:text-teal-400">Conferência de PIX</h3></div>
+                        <div class="p-4"><ul class="space-y-2 text-sm">${pixList || '<li class="text-gray-500">Nenhum PIX registrado.</li>'}</ul></div>
+                    </div>
+
+                    ${generateSignaturesHTML()}
+                </div>
+            `;
+        }
+
+        // --- CLOSURE (FECHAMENTO DE CAIXA) LOGIC ---
+        function renderClosure(container) {
+            const data = getReportData();
+            const c = state.closureData;
+            const totalFisico = (c.notas100*100) + (c.notas50*50) + (c.notas20*20) + (c.notas10*10) + (c.notas5*5) + (c.notas2*2) + (c.moedas*1);
+            const diferenca = totalFisico - data.dinheiro;
+
+            let statusClass = 'text-gray-500';
+            let statusText = 'Aguardando preenchimento...';
+            
+            if(totalFisico > 0 || data.dinheiro > 0) {
+                if (diferenca === 0) { statusClass = 'text-green-600 bg-green-100 p-2 rounded'; statusText = 'CAIXA BATIDO (Exato)'; }
+                else if (diferenca > 0) { statusClass = 'text-blue-600 bg-blue-100 p-2 rounded'; statusText = `SOBRA DE CAIXA: +${formatCurrency(diferenca)}`; }
+                else { statusClass = 'text-red-600 bg-red-100 p-2 rounded'; statusText = `FALTA DE CAIXA: ${formatCurrency(diferenca)}`; }
+            }
+
+            container.innerHTML = `
+                <div class="max-w-4xl mx-auto">
+                    <div class="print-only text-center mb-8 border-b-2 border-black pb-4">
+                        <h1 class="text-3xl font-black uppercase">${state.settings.eventName}</h1>
+                        <h2 class="text-xl">${state.settings.schoolName}</h2>
+                        <p class="text-xl mt-1">Conferência Física do Caixa (Dinheiro)</p>
+                        <p class="text-sm mt-2 text-gray-600">Data/Hora: ${formatDate(new Date().toISOString())}</p>
+                    </div>
+
+                    <div class="flex justify-between items-center mb-6 no-print">
+                        <h2 class="text-2xl font-bold">Fechamento de Cédulas</h2>
+                        <div class="flex gap-2">
+                            <button onclick="downloadClosureCSV()" class="bg-blue-600 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2"><i data-lucide="download" class="w-4 h-4"></i> CSV</button>
+                            <button onclick="window.print()" class="bg-gray-800 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2"><i data-lucide="printer" class="w-4 h-4"></i> Imprimir</button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border dark:border-gray-700">
+                            <h3 class="font-bold mb-4 border-b pb-2">Contagem de Cédulas</h3>
+                            <div class="space-y-3">
+                                ${[100, 50, 20, 10, 5, 2].map(val => `
+                                    <div class="flex justify-between items-center">
+                                        <span class="w-24">Notas de R$ ${val}</span>
+                                        <input type="number" min="0" value="${c[`notas${val}`]}" onchange="updateClosure('notas${val}', this.value)" class="w-20 text-center p-2 border rounded bg-gray-50 dark:bg-gray-900 no-print">
+                                        <span class="w-24 text-right font-bold print-only border-b border-black inline-block text-center">${c[`notas${val}`]} un.</span>
+                                        <span class="w-24 text-right">${formatCurrency(c[`notas${val}`] * val)}</span>
+                                    </div>
+                                `).join('')}
+                                <div class="flex justify-between items-center pt-2 border-t">
+                                    <span class="w-24">Moedas (R$)</span>
+                                    <input type="number" step="0.05" min="0" value="${c.moedas}" onchange="updateClosure('moedas', this.value)" class="w-20 text-center p-2 border rounded bg-gray-50 dark:bg-gray-900 no-print">
+                                    <span class="w-24 text-right font-bold print-only border-b border-black inline-block text-center">${formatCurrency(c.moedas)}</span>
+                                    <span class="w-24 text-right">${formatCurrency(c.moedas)}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border dark:border-gray-700">
+                                <p class="text-sm text-gray-500 mb-1">Total no Sistema (Vendas em Dinheiro)</p>
+                                <p class="text-3xl font-black">${formatCurrency(data.dinheiro)}</p>
+                            </div>
+                            <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border dark:border-gray-700">
+                                <p class="text-sm text-gray-500 mb-1">Total Físico Contado</p>
+                                <p class="text-3xl font-black text-blue-600">${formatCurrency(totalFisico)}</p>
+                            </div>
+                            <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border dark:border-gray-700 text-center">
+                                <p class="font-bold text-lg mb-2">Resultado da Conferência</p>
+                                <div class="text-lg font-black uppercase ${statusClass}">${statusText}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    ${generateSignaturesHTML()}
+                </div>
+            `;
+        }
+
+        function updateClosure(field, value) {
+            state.closureData[field] = Number(value) || 0;
+            saveData('pdv_closure', state.closureData);
+            renderContent();
+        }
+
+        function downloadClosureCSV() {
+            const c = state.closureData;
+            const data = getReportData();
+            const totalFisico = (c.notas100*100) + (c.notas50*50) + (c.notas20*20) + (c.notas10*10) + (c.notas5*5) + (c.notas2*2) + (c.moedas*1);
+            
+            let csv = "Tipo,Quantidade,Total\n";
+            csv += `Notas de 100,${c.notas100},${c.notas100*100}\n`;
+            csv += `Notas de 50,${c.notas50},${c.notas50*50}\n`;
+            csv += `Notas de 20,${c.notas20},${c.notas20*20}\n`;
+            csv += `Notas de 10,${c.notas10},${c.notas10*10}\n`;
+            csv += `Notas de 5,${c.notas5},${c.notas5*5}\n`;
+            csv += `Notas de 2,${c.notas2},${c.notas2*2}\n`;
+            csv += `Moedas,,${c.moedas}\n`;
+            csv += `TOTAL FISICO,,${totalFisico}\n`;
+            csv += `TOTAL SISTEMA,,${data.dinheiro}\n`;
+            csv += `DIFERENCA,,${totalFisico - data.dinheiro}\n`;
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('href', url);
+            a.setAttribute('download', 'fechamento_caixa.csv');
+            a.click();
+        }
+
+        function generateSignaturesHTML() {
+            return `
+                <div class="print-flex hidden justify-between items-end mt-24 pt-8 w-full gap-4">
+                    <div class="text-center border-t border-black w-1/4 pt-2 text-xs font-bold">COORD. GERAL</div>
+                    <div class="text-center border-t border-black w-1/4 pt-2 text-xs font-bold">COORD. FIN.</div>
+                    <div class="text-center border-t border-black w-1/4 pt-2 text-xs font-bold">OPERADOR DE CAIXA</div>
+                    <div class="border border-black w-32 h-32 flex flex-col items-center justify-center text-xs text-gray-500 font-bold p-2">
+                        <span class="mb-auto mt-2 text-black">CARIMBO</span>
+                        <span class="text-[10px] mt-auto">Grêmio Estudantil</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        // --- SETTINGS & LOGS LOGIC ---
+        function renderSettings(container) {
+            container.innerHTML = `
+                <div class="max-w-4xl mx-auto space-y-6 no-print">
+                    <h2 class="text-2xl font-bold mb-6">Configurações e Logs</h2>
+                    
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 p-6">
+                        <h3 class="font-bold mb-4">Informações da Organização</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-semibold mb-2">Nome do Grêmio ou Evento</label>
+                                <input type="text" id="cfg-event" value="${state.settings.eventName}" onchange="updateSettings('eventName', this.value)" class="w-full p-3 bg-gray-50 dark:bg-gray-900 border rounded-xl">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-2">Nome da Escola</label>
+                                <input type="text" id="cfg-school" value="${state.settings.schoolName}" onchange="updateSettings('schoolName', this.value)" class="w-full p-3 bg-gray-50 dark:bg-gray-900 border rounded-xl">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-2">Desenvolvedor / Equipe</label>
+                                <input type="text" value="${state.settings.developer}" disabled class="w-full p-3 bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-500 opacity-70 cursor-not-allowed">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-900 rounded-2xl shadow-sm border border-gray-700 p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-bold text-white flex items-center gap-2"><i data-lucide="terminal" class="w-5 h-5"></i> Logs do Sistema (JSON)</h3>
+                            <button onclick="downloadLogs()" class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm transition-colors">Exportar Backup</button>
+                        </div>
+                        <textarea readonly class="w-full h-64 p-4 bg-black text-green-400 font-mono text-sm rounded-xl outline-none resize-y border border-gray-700">${JSON.stringify({ vendas: state.sales, cardapio: state.products }, null, 2)}</textarea>
+                        <p class="text-xs text-gray-400 mt-2">Visão direta do banco de dados local. Útil para auditoria e backups.</p>
+                    </div>
+
+                    <div class="bg-red-50 dark:bg-red-900/20 rounded-2xl shadow-sm border border-red-200 dark:border-red-800/50 p-6">
+                        <h3 class="font-bold text-red-800 dark:text-red-400 mb-2 flex items-center gap-2"><i data-lucide="alert-triangle" class="w-5 h-5"></i> Zona de Perigo</h3>
+                        <p class="text-sm text-red-600 dark:text-red-300 mb-4">Ao encerrar o evento, todo o histórico de vendas e fechamentos será apagado permanentemente.</p>
+                        <button onclick="resetSystem()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-xl transition-colors">
+                            Encerrar Evento (Zerar Vendas e Caixa)
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateSettings(key, value) {
+            state.settings[key] = value;
+            saveData('pdv_settings', state.settings);
+            updateHeaders();
+        }
+
+        function downloadLogs() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
+                data_exportacao: new Date().toISOString(),
+                configuracoes: state.settings,
+                vendas: state.sales,
+                fechamento: state.closureData
+            }, null, 2));
+            const a = document.createElement('a');
+            a.setAttribute("href", dataStr);
+            a.setAttribute("download", "backup_pdv.json");
+            a.click();
+        }
+
+        function resetSystem() {
+            if (confirm(`Você tem certeza absoluta?\nIsso apagará as ${state.sales.length} vendas registradas e zerará o fechamento de caixa.`)) {
+                state.sales = [];
+                state.closureData = { notas100: 0, notas50: 0, notas20: 0, notas10: 0, notas5: 0, notas2: 0, moedas: 0 };
+                saveData('pdv_sales', state.sales);
+                saveData('pdv_closure', state.closureData);
+                navigate('pos');
+            }
+        }
+
+        // Initialize application
+        init();
+    </script>
 </body>
 </html>
