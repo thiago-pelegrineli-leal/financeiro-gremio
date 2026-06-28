@@ -1,788 +1,611 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDV - Sistema de Caixa</title>
-    
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: { extend: {} }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/jpeg" href="https://media-gru1-1.cdn.whatsapp.net/v/t61.24694-24/489405406_650586094569182_6793834854762065392_n.jpg?ccb=11-4&oh=01_Q5Aa4wGY7p0SayjbDIPzs9zg4cRQqjwpuZWHtXDXiacRVfJnLw&oe=6A35BF57&_nc_sid=5e03e0&_nc_cat=102">
+  <title>PDV Profissional | Sistema de Vendas Grêmio</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: { light: '#3b82f6', dark: '#2563eb' }
+          }
         }
-    </script>
-    
-    <script src="https://unpkg.com/lucide@latest"></script>
-    
-    <style>
-        /* Estilos específicos para impressão */
-        @media print {
-            .no-print { display: none !important; }
-            .print-only { display: block !important; }
-            .print-flex { display: flex !important; }
-            body { background: white !important; color: black !important; }
-            .shadow-sm, .shadow-md, .shadow-xl { box-shadow: none !important; border: 1px solid #ccc !important; }
-            
-            /* Ajustes para economizar papel */
-            #app-container { height: auto !important; overflow: visible !important; }
-            main { overflow: visible !important; height: auto !important; }
-        }
-        .print-only { display: none; }
-        .print-flex { display: none; }
-    </style>
+      }
+    }
+  </script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.2.0",
+        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+        "lucide-react": "https://esm.sh/lucide-react@0.330.0?deps=react@18.2.0"
+      }
+    }
+  </script>
+  <style>
+    @media print {
+      .print\:hidden { display: none !important; }
+      .print\:block { display: block !important; }
+      body { background: white !important; color: black !important; }
+    }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    .dark::-webkit-scrollbar-thumb { background: #334155; }
+  </style>
 </head>
-<body class="bg-gray-100 dark:bg-gray-950 text-gray-800 dark:text-gray-100 transition-colors duration-300">
+<body class="antialiased transition-colors duration-300 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+  <div id="root"></div>
 
-    <div id="app-container" class="min-h-screen flex h-screen overflow-hidden">
+  <script type="text/babel" data-type="module">
+    import React, { useState, useEffect, useRef, useMemo } from 'react';
+    import { createRoot } from 'react-dom/client';
+    import { 
+      ShoppingCart, Settings, Tag, PlusCircle, MinusCircle, CheckCircle, 
+      CreditCard, Banknote, X, Edit2, Trash2, RotateCcw, LayoutDashboard, 
+      History, Printer, Download, Calculator, Lock, Sun, Moon, AlertTriangle, Info,
+      GripHorizontal, Archive, Image as ImageIcon, Search
+    } from 'lucide-react';
+
+    // Utilitários de Segurança e Formatação
+    const safeEval = (str) => {
+      try {
+        return Function(`'use strict'; return (${str.replace(/[^-()\d/*+.]/g, '')})`)();
+      } catch { return "Erro"; }
+    };
+
+    const formatBRL = (val) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+    function App() {
+      // --- ESTADOS E PERSISTÊNCIA ---
+      const [theme, setTheme] = useState(() => localStorage.getItem('pdv_theme')?.replace(/"/g, '') || 'light');
+      const [settings, setSettings] = useState(() => JSON.parse(localStorage.getItem('pdv_settings')) || { 
+        eventName: 'Evento Atual', 
+        gremioName: 'Grêmio Estudantil',
+        logoUrl: 'https://media-gru1-1.cdn.whatsapp.net/v/t61.24694-24/489405406_650586094569182_6793834854762065392_n.jpg?ccb=11-4&oh=01_Q5Aa4wGY7p0SayjbDIPzs9zg4cRQqjwpuZWHtXDXiacRVfJnLw&oe=6A35BF57&_nc_sid=5e03e0&_nc_cat=102'
+      });
+      
+      const [products, setProducts] = useState(() => JSON.parse(localStorage.getItem('pdv_products')) || []);
+      const [sales, setSales] = useState(() => JSON.parse(localStorage.getItem('pdv_sales')) || []);
+      const [eventLogs, setEventLogs] = useState(() => JSON.parse(localStorage.getItem('pdv_event_logs')) || []);
+      const [cashDrawer, setCashDrawer] = useState(() => JSON.parse(localStorage.getItem('pdv_cash_drawer')) || {
+        200: 0, 100: 0, 50: 0, 20: 0, 10: 0, 5: 0, 2: 0, 1: 0, 0.5: 0, 0.25: 0, 0.1: 0, 0.05: 0
+      });
+
+      const [activeTab, setActiveTab] = useState('pos');
+      const [cart, setCart] = useState([]);
+      const [cartDiscount, setCartDiscount] = useState(0);
+      const [searchTerm, setSearchTerm] = useState('');
+
+      // Modais e UI
+      const [isCalcOpen, setIsCalcOpen] = useState(false);
+      const [calcInput, setCalcInput] = useState('');
+      const [isPixModalOpen, setIsPixModalOpen] = useState(false);
+      const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', text: '', action: null, isDanger: false });
+      const [checkoutMsg, setCheckoutMsg] = useState('');
+      const [pixData, setPixData] = useState({ name: '', class: '' });
+
+      // Sincronização LocalStorage
+      useEffect(() => {
+        localStorage.setItem('pdv_theme', JSON.stringify(theme));
+        localStorage.setItem('pdv_settings', JSON.stringify(settings));
+        localStorage.setItem('pdv_products', JSON.stringify(products));
+        localStorage.setItem('pdv_sales', JSON.stringify(sales));
+        localStorage.setItem('pdv_event_logs', JSON.stringify(eventLogs));
+        localStorage.setItem('pdv_cash_drawer', JSON.stringify(cashDrawer));
+        document.documentElement.classList.toggle('dark', theme === 'dark');
+      }, [theme, settings, products, sales, eventLogs, cashDrawer]);
+
+      // --- LÓGICA DE NEGÓCIO ---
+      const filteredProducts = useMemo(() => 
+        products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase())),
+      [products, searchTerm]);
+
+      const cartSubtotal = cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+      const cartTotal = Math.max(0, cartSubtotal - cartDiscount);
+
+      const addToCart = (product) => {
+        setCart(prev => {
+          const idx = prev.findIndex(i => i.product.id === product.id);
+          if (idx > -1) {
+            const newCart = [...prev];
+            newCart[idx].quantity += 1;
+            return newCart;
+          }
+          return [...prev, { product, quantity: 1 }];
+        });
+      };
+
+      const removeFromCart = (productId) => {
+        setCart(prev => prev.map(i => i.product.id === productId ? { ...i, quantity: i.quantity - 1 } : i).filter(i => i.quantity > 0));
+      };
+
+      const processCheckout = (method) => {
+        if (method === 'PIX' && (!pixData.name || !pixData.class)) return alert("Preencha os dados do aluno!");
         
-        <aside class="w-20 md:w-64 bg-white dark:bg-gray-900 border-r dark:border-gray-800 flex flex-col p-4 shadow-sm no-print z-10 transition-all duration-300">
-            <div class="flex items-center gap-3 px-2 mb-8 mt-2 text-blue-600 dark:text-blue-500">
-                <i data-lucide="store" class="w-8 h-8 shrink-0"></i>
-                <h1 id="sidebar-event-name" class="text-xl font-bold tracking-tight hidden md:block overflow-hidden text-ellipsis whitespace-nowrap">
-                    PDV
-                </h1>
-            </div>
-
-            <nav class="flex-1 space-y-2" id="nav-menu">
-                <button onclick="navigate('pos')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-medium" data-target="pos">
-                    <i data-lucide="shopping-cart"></i> <span class="hidden md:block">Caixa (PDV)</span>
-                </button>
-                <button onclick="navigate('products')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-medium" data-target="products">
-                    <i data-lucide="tag"></i> <span class="hidden md:block">Cardápio</span>
-                </button>
-                <button onclick="navigate('history')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-medium" data-target="history">
-                    <i data-lucide="history"></i> <span class="hidden md:block">Histórico</span>
-                </button>
-                <button onclick="navigate('report')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-medium" data-target="report">
-                    <i data-lucide="layout-dashboard"></i> <span class="hidden md:block">Relatório</span>
-                </button>
-                <button onclick="navigate('closure')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-medium" data-target="closure">
-                    <i data-lucide="calculator"></i> <span class="hidden md:block">Fechamento</span>
-                </button>
-            </nav>
-
-            <div class="mt-auto space-y-2 pt-4 border-t dark:border-gray-800">
-                <button onclick="navigate('settings')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-medium" data-target="settings">
-                    <i data-lucide="settings"></i> <span class="hidden md:block">Configurações</span>
-                </button>
-                <button onclick="toggleTheme()" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                    <i id="theme-icon" data-lucide="moon"></i>
-                    <span id="theme-text" class="hidden md:block font-medium">Tema Escuro</span>
-                </button>
-            </div>
-        </aside>
-
-        <main class="flex-1 flex flex-col h-full overflow-hidden relative">
-            
-            <header class="bg-white dark:bg-gray-900 border-b dark:border-gray-800 p-4 shadow-sm no-print flex justify-between items-center md:hidden">
-                <h1 id="mobile-event-name" class="font-bold text-gray-800 dark:text-white truncate">PDV</h1>
-            </header>
-
-            <div id="content-area" class="flex-1 overflow-y-auto p-4 md:p-6 w-full max-w-7xl mx-auto">
-                </div>
-        </main>
-
-        <div id="pix-modal" class="hidden absolute inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm no-print">
-            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden transform transition-all">
-                <div class="flex justify-between items-center p-4 border-b dark:border-gray-700 bg-teal-50 dark:bg-teal-900/30">
-                    <h3 class="font-bold text-teal-800 dark:text-teal-400 flex items-center gap-2">
-                        <i data-lucide="credit-card"></i> Identificação do PIX
-                    </h3>
-                    <button onclick="closePixModal()" class="text-gray-500 hover:text-gray-700 dark:text-gray-400">
-                        <i data-lucide="x"></i>
-                    </button>
-                </div>
-                <div class="p-6 space-y-4">
-                    <div class="text-center mb-6">
-                        <p class="text-sm text-gray-500 dark:text-gray-400">Total a cobrar no PIX:</p>
-                        <p id="pix-modal-total" class="text-3xl font-black text-teal-600 dark:text-teal-400">R$ 0,00</p>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Nome do Aluno</label>
-                        <input type="text" id="pix-name" placeholder="Ex: João da Silva" class="w-full p-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-600 rounded-xl outline-none focus:ring-2 focus:ring-teal-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Série / Turma</label>
-                        <input type="text" id="pix-class" placeholder="Ex: 3º Ano B" class="w-full p-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-600 rounded-xl outline-none focus:ring-2 focus:ring-teal-500">
-                    </div>
-                </div>
-                <div class="p-4 border-t dark:border-gray-700 flex gap-3 bg-gray-50 dark:bg-gray-800/80">
-                    <button onclick="closePixModal()" class="flex-1 py-3 bg-gray-200 dark:bg-gray-700 rounded-xl font-bold hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">Cancelar</button>
-                    <button onclick="confirmPix()" class="flex-1 py-3 bg-teal-500 text-white rounded-xl font-bold hover:bg-teal-600 transition-colors flex justify-center items-center gap-2">
-                        <i data-lucide="check-circle"></i> Confirmar
-                    </button>
-                </div>
-            </div>
-        </div>
-
-    </div>
-
-    <script>
-        // --- DATA MANAGEMENT ---
-        const loadData = (key, defaultVal) => JSON.parse(localStorage.getItem(key)) || defaultVal;
-        const saveData = (key, val) => localStorage.setItem(key, JSON.stringify(val));
-
-        let state = {
-            theme: loadData('pdv_theme', 'light'),
-            activeTab: 'pos',
-            settings: loadData('pdv_settings', { 
-                eventName: 'Grêmio Estudantil Geração Consciente',
-                schoolName: 'E.E. Profº João Teixeira Sampaio',
-                developer: 'Smart Applications - Thiago'
-            }),
-            products: loadData('pdv_products', []),
-            sales: loadData('pdv_sales', []),
-            cart: [],
-            cartDiscount: 0,
-            editingProduct: null,
-            closureData: loadData('pdv_closure', {
-                notas100: 0, notas50: 0, notas20: 0, notas10: 0, notas5: 0, notas2: 0, moedas: 0
-            })
+        const sale = {
+          id: crypto.randomUUID(),
+          items: [...cart],
+          subtotal: cartSubtotal,
+          discount: cartDiscount,
+          total: cartTotal,
+          paymentMethod: method,
+          timestamp: new Date().toISOString(),
+          student: method === 'PIX' ? pixData : null
         };
 
-        const formatCurrency = (val) => Number(val).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-        const formatDate = (iso) => new Date(iso).toLocaleString('pt-BR');
+        setSales([sale, ...sales]);
+        setCart([]);
+        setCartDiscount(0);
+        setPixData({ name: '', class: '' });
+        setIsPixModalOpen(false);
+        setCheckoutMsg(`Venda realizada: ${formatBRL(cartTotal)}`);
+        setTimeout(() => setCheckoutMsg(''), 3000);
+      };
 
-        // --- CORE FUNCTIONS ---
-        function init() {
-            applyTheme(state.theme);
-            updateHeaders();
-            navigate(state.activeTab);
+      // --- EXPORTAÇÃO E RELATÓRIOS ---
+      const reportData = useMemo(() => {
+        const initial = { total: 0, pix: 0, dinheiro: 0, items: {} };
+        return sales.reduce((acc, sale) => {
+          acc.total += sale.total;
+          acc[sale.paymentMethod.toLowerCase()] += sale.total;
+          sale.items.forEach(item => {
+            if (!acc.items[item.product.id]) acc.items[item.product.id] = { name: item.product.name, qty: 0, total: 0 };
+            acc.items[item.product.id].qty += item.quantity;
+            acc.items[item.product.id].total += (item.quantity * item.product.price);
+          });
+          return acc;
+        }, initial);
+      }, [sales]);
+
+      const downloadPDF = (id, title) => {
+        const element = document.getElementById(id);
+        const opt = { margin: 10, filename: `${title}.pdf`, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4' } };
+        html2pdf().set(opt).from(element).save();
+      };
+
+      // --- COMPONENTES DE INTERFACE ---
+      const SidebarItem = ({ id, icon: Icon, label }) => (
+        <button 
+          onClick={() => setActiveTab(id)} 
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-semibold ${activeTab === id ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+        >
+          <Icon size={20} /> <span className="hidden md:block">{label}</span>
+        </button>
+      );
+
+      return (
+        <div className="flex h-screen w-full overflow-hidden">
+          {/* SIDEBAR */}
+          <aside className="w-20 md:w-64 border-r dark:border-slate-800 bg-white dark:bg-slate-900 p-4 flex flex-col gap-8 print:hidden transition-all">
+            <div className="flex items-center gap-3 px-2">
+              <img src={settings.logoUrl} className="w-10 h-10 rounded-full border-2 border-blue-500 p-0.5 object-cover" />
+              <div className="hidden md:block">
+                <h2 className="text-xs font-black uppercase text-blue-500 tracking-wider">Sistema PDV</h2>
+                <p className="text-sm font-bold truncate w-32">{settings.gremioName}</p>
+              </div>
+            </div>
+
+            <nav className="flex-1 space-y-1">
+              <SidebarItem id="pos" icon={ShoppingCart} label="Caixa PDV" />
+              <SidebarItem id="products" icon={Tag} label="Cardápio" />
+              <SidebarItem id="history" icon={History} label="Histórico" />
+              <SidebarItem id="report" icon={LayoutDashboard} label="Relatórios" />
+              <SidebarItem id="closing" icon={Lock} label="Fechamento" />
+              <SidebarItem id="settings" icon={Settings} label="Ajustes" />
+            </nav>
+
+            <div className="pt-4 border-t dark:border-slate-800 space-y-2">
+               <button onClick={() => setIsCalcOpen(!isCalcOpen)} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-colors">
+                <Calculator size={20}/> <span className="hidden md:block font-medium">Calculadora</span>
+              </button>
+              <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 transition-all">
+                {theme === 'dark' ? <Sun size={20}/> : <Moon size={20}/>}
+                <span className="hidden md:block font-bold">Modo {theme === 'dark' ? 'Claro' : 'Escuro'}</span>
+              </button>
+            </div>
+          </aside>
+
+          {/* MAIN CONTENT */}
+          <main className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950 p-4 md:p-8">
             
-            // Garantir modo claro na impressão
-            window.addEventListener('beforeprint', () => {
-                document.documentElement.setAttribute('data-pre-print-theme', state.theme);
-                document.documentElement.classList.remove('dark');
-            });
-            window.addEventListener('afterprint', () => {
-                if(document.documentElement.getAttribute('data-pre-print-theme') === 'dark') {
-                    document.documentElement.classList.add('dark');
-                }
-            });
-        }
-
-        function toggleTheme() {
-            state.theme = state.theme === 'dark' ? 'light' : 'dark';
-            saveData('pdv_theme', state.theme);
-            applyTheme(state.theme);
-        }
-
-        function applyTheme(theme) {
-            const html = document.documentElement;
-            const icon = document.getElementById('theme-icon');
-            const text = document.getElementById('theme-text');
-            
-            if (theme === 'dark') {
-                html.classList.add('dark');
-                icon.setAttribute('data-lucide', 'sun');
-                text.textContent = 'Tema Claro';
-            } else {
-                html.classList.remove('dark');
-                icon.setAttribute('data-lucide', 'moon');
-                text.textContent = 'Tema Escuro';
-            }
-            lucide.createIcons();
-        }
-
-        function updateHeaders() {
-            document.getElementById('sidebar-event-name').textContent = state.settings.eventName;
-            document.getElementById('mobile-event-name').textContent = state.settings.eventName;
-        }
-
-        function navigate(tab) {
-            state.activeTab = tab;
-            document.querySelectorAll('.nav-btn').forEach(btn => {
-                if(btn.dataset.target === tab) {
-                    btn.classList.add('bg-blue-600', 'text-white', 'shadow-md');
-                    btn.classList.remove('text-gray-600', 'dark:text-gray-400', 'hover:bg-gray-100', 'dark:hover:bg-gray-800');
-                } else {
-                    btn.classList.remove('bg-blue-600', 'text-white', 'shadow-md');
-                    btn.classList.add('text-gray-600', 'dark:text-gray-400', 'hover:bg-gray-100', 'dark:hover:bg-gray-800');
-                }
-            });
-            renderContent();
-        }
-
-        function renderContent() {
-            const container = document.getElementById('content-area');
-            container.innerHTML = ''; 
-
-            if (state.activeTab === 'pos') renderPOS(container);
-            else if (state.activeTab === 'products') renderProducts(container);
-            else if (state.activeTab === 'history') renderHistory(container);
-            else if (state.activeTab === 'report') renderReport(container);
-            else if (state.activeTab === 'closure') renderClosure(container);
-            else if (state.activeTab === 'settings') renderSettings(container);
-
-            lucide.createIcons();
-        }
-
-        // --- POS (CAIXA) LOGIC ---
-        function renderPOS(container) {
-            const subtotal = state.cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
-            const total = Math.max(0, subtotal - state.cartDiscount);
-            const cartItemsCount = state.cart.reduce((sum, i) => sum + i.quantity, 0);
-
-            let productsHTML = state.products.length === 0 
-                ? `<div class="col-span-full py-12 text-center bg-white dark:bg-gray-800 rounded-2xl border border-dashed"><p>Cardápio vazio.</p></div>`
-                : state.products.map(p => `
-                    <button onclick="addToCart('${p.id}')" class="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl p-4 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md hover:border-blue-400 transition-all active:scale-95 group">
-                        <span class="font-semibold mb-2 group-hover:text-blue-600">${p.name}</span>
-                        <span class="text-blue-700 dark:text-blue-300 font-bold bg-blue-50 dark:bg-blue-900/30 px-3 py-1 rounded-lg">${formatCurrency(p.price)}</span>
-                    </button>
-                `).join('');
-
-            let cartHTML = state.cart.length === 0
-                ? `<div class="h-full flex flex-col items-center justify-center text-gray-400 space-y-2"><i data-lucide="shopping-cart" class="w-12 h-12 opacity-20"></i><p>Adicione itens</p></div>`
-                : state.cart.map(item => `
-                    <div class="flex justify-between items-center bg-gray-50 dark:bg-gray-700/30 p-3 rounded-xl border dark:border-gray-700">
-                        <div class="flex-1 pr-2">
-                            <p class="font-semibold text-sm">${item.product.name}</p>
-                            <p class="text-xs text-gray-500">${formatCurrency(item.product.price)}</p>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <div class="flex items-center bg-white dark:bg-gray-800 rounded-lg border dark:border-gray-600 shadow-sm">
-                                <button onclick="removeFromCart('${item.product.id}')" class="p-1.5 text-red-500 hover:bg-red-50 rounded-l-lg"><i data-lucide="minus-circle" class="w-4 h-4"></i></button>
-                                <span class="w-6 text-center font-bold text-sm">${item.quantity}</span>
-                                <button onclick="addToCart('${item.product.id}')" class="p-1.5 text-blue-500 hover:bg-blue-50 rounded-r-lg"><i data-lucide="plus-circle" class="w-4 h-4"></i></button>
-                            </div>
-                            <div class="font-bold text-sm w-16 text-right">${formatCurrency(item.product.price * item.quantity)}</div>
-                        </div>
+            {/* TELA: PDV */}
+            {activeTab === 'pos' && (
+              <div className="flex flex-col lg:flex-row gap-8 h-full animate-in fade-in duration-500">
+                <div className="flex-1 space-y-6">
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <h1 className="text-3xl font-black">Vendas</h1>
+                    <div className="relative w-full md:w-72">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                      <input 
+                        type="text" placeholder="Buscar produto..." 
+                        className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 focus:ring-2 ring-blue-500 outline-none transition-all"
+                        value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+                      />
                     </div>
-                `).join('');
+                  </div>
 
-            container.innerHTML = `
-                <div class="flex flex-col lg:flex-row gap-6 h-full no-print">
-                    <div class="flex-1 flex flex-col">
-                        <div class="flex justify-between items-center mb-4">
-                            <h2 class="text-2xl font-bold">Frente de Caixa</h2>
-                            <span class="text-sm text-gray-500">${state.products.length} produtos</span>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {filteredProducts.map(p => (
+                      <button 
+                        key={p.id} onClick={() => addToCart(p)}
+                        className="group bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 hover:border-blue-500 shadow-sm hover:shadow-xl hover:shadow-blue-500/10 transition-all flex flex-col items-center text-center gap-3 active:scale-95"
+                      >
+                        <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center font-bold text-xl group-hover:scale-110 transition-transform">
+                          {p.name.charAt(0)}
                         </div>
-                        <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4 overflow-y-auto pb-4 pr-2">
-                            ${productsHTML}
+                        <span className="font-bold text-slate-700 dark:text-slate-200">{p.name}</span>
+                        <span className="px-3 py-1 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-full text-sm font-black">
+                          {formatBRL(p.price)}
+                        </span>
+                      </button>
+                    ))}
+                    {products.length === 0 && (
+                      <div className="col-span-full py-20 text-center opacity-50">
+                        <Tag className="mx-auto mb-4" size={48} />
+                        <p>Nenhum produto cadastrado no cardápio.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* CARRINHO LADO DIREITO */}
+                <div className="w-full lg:w-[400px] flex flex-col bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden shrink-0">
+                  <div className="p-6 border-b dark:border-slate-800">
+                    <h2 className="text-xl font-black flex items-center gap-3">
+                      <ShoppingCart size={24} className="text-blue-500" /> Carrinho
+                    </h2>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                    {cart.map(item => (
+                      <div key={item.product.id} className="flex items-center justify-between group">
+                        <div className="flex-1">
+                          <p className="font-bold text-sm">{item.product.name}</p>
+                          <p className="text-xs text-slate-400">{formatBRL(item.product.price)} / un</p>
                         </div>
+                        <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-800 p-1.5 rounded-xl border dark:border-slate-700">
+                          <button onClick={() => removeFromCart(item.product.id)} className="p-1 hover:text-red-500 transition-colors"><MinusCircle size={18}/></button>
+                          <span className="w-6 text-center font-black text-sm">{item.quantity}</span>
+                          <button onClick={() => addToCart(item.product)} className="p-1 hover:text-blue-500 transition-colors"><PlusCircle size={18}/></button>
+                        </div>
+                      </div>
+                    ))}
+                    {cart.length === 0 && (
+                      <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-2 opacity-50">
+                        <ShoppingCart size={40} />
+                        <p className="font-medium text-sm">O carrinho está vazio</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-6 bg-slate-50/50 dark:bg-slate-800/30 border-t dark:border-slate-800 space-y-4">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-slate-500 font-medium">Subtotal</span>
+                      <span className="font-bold">{formatBRL(cartSubtotal)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-slate-500 font-medium">Desconto</span>
+                      <input 
+                        type="number" value={cartDiscount || ''} 
+                        onChange={e => setCartDiscount(Number(e.target.value))}
+                        className="w-20 text-right bg-transparent border-b border-dashed border-slate-300 dark:border-slate-600 outline-none font-bold text-red-500"
+                        placeholder="0,00"
+                      />
+                    </div>
+                    <div className="pt-4 border-t dark:border-slate-700 flex justify-between items-end">
+                      <span className="font-black text-lg">Total</span>
+                      <span className="text-3xl font-black text-blue-600 dark:text-blue-400 tracking-tighter">
+                        {formatBRL(cartTotal)}
+                      </span>
+                    </div>
+                    {checkoutMsg && (
+                      <div className="py-2 bg-emerald-500/10 text-emerald-600 text-xs font-bold text-center rounded-lg animate-bounce">
+                        {checkoutMsg}
+                      </div>
+                    )}
+                    <div className="grid grid-cols-2 gap-3">
+                      <button 
+                        onClick={() => processCheckout('DINHEIRO')}
+                        disabled={cart.length === 0}
+                        className="py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-950 rounded-2xl font-black flex flex-col items-center gap-1 hover:opacity-90 disabled:opacity-30 transition-all active:scale-95 shadow-xl"
+                      >
+                        <Banknote size={20} /> <span className="text-[10px] uppercase">Dinheiro</span>
+                      </button>
+                      <button 
+                        onClick={() => setIsPixModalOpen(true)}
+                        disabled={cart.length === 0}
+                        className="py-4 bg-teal-500 text-white rounded-2xl font-black flex flex-col items-center gap-1 hover:bg-teal-600 disabled:opacity-30 transition-all active:scale-95 shadow-xl shadow-teal-500/20"
+                      >
+                        <CreditCard size={20} /> <span className="text-[10px] uppercase">PIX</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* RELATÓRIO PDF (HIDDEN NO APP, VISIBLE NO PDF) */}
+            <div className="hidden">
+                <div id="report-view" className="p-10 bg-white text-black font-sans">
+                    <div className="text-center border-b-2 border-slate-200 pb-6 mb-8">
+                        <h1 className="text-4xl font-black uppercase text-slate-900">{settings.gremioName}</h1>
+                        <p className="text-xl font-bold text-slate-600">{settings.eventName}</p>
+                        <p className="text-sm text-slate-400 mt-2">Relatório emitido em: {new Date().toLocaleString('pt-BR')}</p>
                     </div>
                     
-                    <div class="w-full lg:w-96 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl shadow-sm flex flex-col h-[600px] lg:h-full shrink-0">
-                        <div class="p-4 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 rounded-t-2xl flex justify-between">
-                            <h3 class="font-bold">Comanda Atual</h3>
-                            <span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">${cartItemsCount} itens</span>
+                    <div className="grid grid-cols-3 gap-4 mb-10">
+                        <div className="p-4 bg-slate-100 rounded-lg">
+                            <p className="text-xs font-bold uppercase text-slate-500">Total Geral</p>
+                            <p className="text-2xl font-black">{formatBRL(reportData.total)}</p>
                         </div>
-                        <div class="flex-1 overflow-y-auto p-4 space-y-4">${cartHTML}</div>
-                        <div class="p-4 bg-gray-50 dark:bg-gray-800/80 border-t dark:border-gray-700 rounded-b-2xl">
-                            <div class="flex justify-between items-center mb-3">
-                                <span class="text-sm font-medium">Desconto (R$):</span>
-                                <input type="number" id="discount-input" min="0" step="0.5" value="${state.cartDiscount}" onchange="updateDiscount(this.value)" class="w-24 text-right p-1 text-sm border dark:border-gray-600 rounded bg-white dark:bg-gray-700">
-                            </div>
-                            <div class="flex justify-between items-end mb-4">
-                                <span class="font-medium">Total:</span>
-                                <div class="text-right">
-                                    ${state.cartDiscount > 0 ? `<span class="text-sm text-gray-400 line-through block">${formatCurrency(subtotal)}</span>` : ''}
-                                    <span class="text-3xl font-black text-blue-600 dark:text-blue-400">${formatCurrency(total)}</span>
-                                </div>
-                            </div>
-                            <div class="grid grid-cols-2 gap-2">
-                                <button onclick="checkout('DINHEIRO')" ${state.cart.length === 0 ? 'disabled' : ''} class="bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white py-3 rounded-xl font-bold flex flex-col items-center gap-1">
-                                    <i data-lucide="banknote" class="w-5 h-5"></i> <span class="text-xs">Dinheiro</span>
-                                </button>
-                                <button onclick="openPixModal()" ${state.cart.length === 0 ? 'disabled' : ''} class="bg-teal-500 hover:bg-teal-600 disabled:opacity-50 text-white py-3 rounded-xl font-bold flex flex-col items-center gap-1">
-                                    <i data-lucide="credit-card" class="w-5 h-5"></i> <span class="text-xs">PIX</span>
-                                </button>
-                            </div>
+                        <div className="p-4 bg-slate-100 rounded-lg">
+                            <p className="text-xs font-bold uppercase text-slate-500">Total PIX</p>
+                            <p className="text-2xl font-black">{formatBRL(reportData.pix)}</p>
                         </div>
+                        <div className="p-4 bg-slate-100 rounded-lg">
+                            <p className="text-xs font-bold uppercase text-slate-500">Total Dinheiro</p>
+                            <p className="text-2xl font-black">{formatBRL(reportData.dinheiro)}</p>
+                        </div>
+                    </div>
+
+                    <table className="w-full text-left mb-20">
+                        <thead className="bg-slate-900 text-white">
+                            <tr>
+                                <th className="p-3">Produto</th>
+                                <th className="p-3 text-center">Qtd</th>
+                                <th className="p-3 text-right">Faturamento</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200">
+                            {Object.values(reportData.items).map((item, i) => (
+                                <tr key={i}>
+                                    <td className="p-3 font-bold">{item.name}</td>
+                                    <td className="p-3 text-center font-bold text-blue-600">{item.qty}</td>
+                                    <td className="p-3 text-right">{formatBRL(item.total)}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+
+                    <div className="flex justify-around mt-20 text-center text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                        <div className="border-t border-slate-300 pt-2 w-48">Tesouraria</div>
+                        <div className="border-t border-slate-300 pt-2 w-48">Coordenação</div>
+                        <div className="border-t border-slate-300 pt-2 w-48">Operador de Caixa</div>
                     </div>
                 </div>
-            `;
-        }
+            </div>
 
-        function addToCart(productId) {
-            const product = state.products.find(p => p.id === productId);
-            const existing = state.cart.find(i => i.product.id === productId);
-            if (existing) existing.quantity++;
-            else state.cart.push({ product, quantity: 1 });
-            renderContent();
-        }
+            {/* ABA: CARDÁPIO (PRODUTOS) */}
+            {activeTab === 'products' && (
+               <div className="max-w-4xl mx-auto space-y-8 animate-in slide-in-from-bottom-4 duration-500">
+                  <div className="flex justify-between items-center">
+                    <h1 className="text-3xl font-black">Gerenciar Cardápio</h1>
+                  </div>
 
-        function removeFromCart(productId) {
-            const existing = state.cart.find(i => i.product.id === productId);
-            if (existing.quantity === 1) state.cart = state.cart.filter(i => i.product.id !== productId);
-            else existing.quantity--;
-            renderContent();
-        }
+                  <div className="bg-white dark:bg-slate-900 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-xl">
+                    <form 
+                      className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        const formData = new FormData(e.target);
+                        const newProd = {
+                          id: Date.now().toString(),
+                          name: formData.get('name'),
+                          price: parseFloat(formData.get('price'))
+                        };
+                        setProducts([...products, newProd]);
+                        e.target.reset();
+                      }}
+                    >
+                      <div className="md:col-span-1">
+                        <label className="block text-xs font-black uppercase text-slate-500 mb-2">Nome do Produto</label>
+                        <input name="name" required className="w-full p-4 rounded-2xl bg-slate-100 dark:bg-slate-800 border-none outline-none focus:ring-2 ring-blue-500" placeholder="Ex: Refrigerante Lata" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-black uppercase text-slate-500 mb-2">Preço de Venda (R$)</label>
+                        <input name="price" type="number" step="0.01" required className="w-full p-4 rounded-2xl bg-slate-100 dark:bg-slate-800 border-none outline-none focus:ring-2 ring-blue-500" placeholder="0,00" />
+                      </div>
+                      <button type="submit" className="w-full p-4 bg-blue-600 text-white rounded-2xl font-black hover:bg-blue-700 transition-all flex items-center justify-center gap-2">
+                        <PlusCircle size={20}/> Adicionar
+                      </button>
+                    </form>
+                  </div>
 
-        function updateDiscount(val) {
-            state.cartDiscount = Number(val) || 0;
-            renderContent();
-        }
+                  <div className="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-800 overflow-hidden">
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr className="bg-slate-50 dark:bg-slate-800 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                          <th className="p-6">Nome do Produto</th>
+                          <th className="p-6">Valor Unitário</th>
+                          <th className="p-6 text-center">Ações</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y dark:divide-slate-800">
+                        {products.map(p => (
+                          <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                            <td className="p-6 font-bold">{p.name}</td>
+                            <td className="p-6 font-black text-emerald-600">{formatBRL(p.price)}</td>
+                            <td className="p-6">
+                              <div className="flex justify-center gap-2">
+                                <button onClick={() => setProducts(products.filter(x => x.id !== p.id))} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"><Trash2 size={18}/></button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+               </div>
+            )}
 
-        // --- CHECKOUT LOGIC ---
-        function checkout(method) {
-            if (state.cart.length === 0) return;
-            const subtotal = state.cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
-            const total = Math.max(0, subtotal - state.cartDiscount);
-
-            const newSale = {
-                id: Date.now().toString(),
-                items: [...state.cart],
-                subtotal, discount: state.cartDiscount, total,
-                paymentMethod: method,
-                timestamp: new Date().toISOString(),
-                studentInfo: null
-            };
-
-            state.sales.unshift(newSale);
-            saveData('pdv_sales', state.sales);
-            state.cart = [];
-            state.cartDiscount = 0;
-            renderContent();
-        }
-
-        function openPixModal() {
-            if (state.cart.length === 0) return;
-            const subtotal = state.cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
-            document.getElementById('pix-modal-total').textContent = formatCurrency(Math.max(0, subtotal - state.cartDiscount));
-            document.getElementById('pix-modal').classList.remove('hidden');
-        }
-
-        function closePixModal() {
-            document.getElementById('pix-modal').classList.add('hidden');
-            document.getElementById('pix-name').value = '';
-            document.getElementById('pix-class').value = '';
-        }
-
-        function confirmPix() {
-            const name = document.getElementById('pix-name').value;
-            const sClass = document.getElementById('pix-class').value;
-            if (!name.trim() || !sClass.trim()) return alert('Preencha Nome e Série.');
-
-            const subtotal = state.cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
-            const total = Math.max(0, subtotal - state.cartDiscount);
-
-            const newSale = {
-                id: Date.now().toString(),
-                items: [...state.cart],
-                subtotal, discount: state.cartDiscount, total,
-                paymentMethod: 'PIX',
-                timestamp: new Date().toISOString(),
-                studentInfo: { name, schoolClass: sClass }
-            };
-
-            state.sales.unshift(newSale);
-            saveData('pdv_sales', state.sales);
-            state.cart = [];
-            state.cartDiscount = 0;
-            closePixModal();
-            renderContent();
-        }
-
-        // --- PRODUCTS LOGIC ---
-        function renderProducts(container) {
-            const isEditing = state.editingProduct !== null;
-            const rows = state.products.map(p => `
-                <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 border-b dark:border-gray-700">
-                    <td class="p-4 font-medium">${p.name}</td>
-                    <td class="p-4 font-bold text-green-600">${formatCurrency(p.price)}</td>
-                    <td class="p-4 flex gap-2 justify-end">
-                        <button onclick="editProduct('${p.id}')" class="p-2 text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg"><i data-lucide="edit-2" class="w-4 h-4"></i></button>
-                        <button onclick="deleteProduct('${p.id}')" class="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                    </td>
-                </tr>
-            `).join('');
-
-            container.innerHTML = `
-                <div class="max-w-4xl mx-auto no-print">
-                    <h2 class="text-2xl font-bold mb-6">Gerenciar Cardápio</h2>
-                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 overflow-hidden mb-8">
-                        <div class="p-4 bg-blue-50 dark:bg-blue-900/20 border-b dark:border-gray-700">
-                            <h3 class="font-semibold text-blue-800 dark:text-blue-300 flex items-center gap-2">
-                                <i data-lucide="${isEditing ? 'edit-2' : 'plus-circle'}" class="w-5 h-5"></i> 
-                                ${isEditing ? 'Editando Produto' : 'Novo Produto'}
-                            </h3>
-                        </div>
-                        <div class="p-5 flex flex-col md:flex-row gap-4 items-end">
-                            <div class="flex-1 w-full">
-                                <label class="block text-sm font-semibold mb-1">Nome</label>
-                                <input type="text" id="prod-name" value="${isEditing ? state.editingProduct.name : ''}" class="w-full p-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
-                            </div>
-                            <div class="w-full md:w-40">
-                                <label class="block text-sm font-semibold mb-1">Preço</label>
-                                <input type="number" step="0.01" id="prod-price" value="${isEditing ? state.editingProduct.price : ''}" class="w-full p-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
-                            </div>
-                            <div class="flex gap-2">
-                                ${isEditing ? `<button onclick="cancelEdit()" class="p-3 bg-gray-200 dark:bg-gray-700 rounded-xl font-bold">Cancelar</button>` : ''}
-                                <button onclick="saveProduct()" class="p-3 bg-blue-600 text-white rounded-xl font-bold flex items-center gap-2"><i data-lucide="check-circle" class="w-5 h-5"></i> Salvar</button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 overflow-hidden">
-                        <table class="w-full text-left">
-                            <thead class="bg-gray-50 dark:bg-gray-900/50 border-b dark:border-gray-700 text-sm">
-                                <tr><th class="p-4">Produto</th><th class="p-4">Preço</th><th class="p-4 text-right">Ações</th></tr>
-                            </thead>
-                            <tbody>${rows || `<tr><td colspan="3" class="p-8 text-center text-gray-500">Nenhum produto</td></tr>`}</tbody>
-                        </table>
-                    </div>
+            {/* ABA: RELATÓRIOS */}
+            {activeTab === 'report' && (
+              <div className="max-w-5xl mx-auto space-y-6">
+                <div className="flex justify-between items-center">
+                  <h1 className="text-3xl font-black text-slate-800 dark:text-white">Análise de Faturamento</h1>
+                  <div className="flex gap-2">
+                    <button onClick={() => window.print()} className="px-6 py-3 bg-slate-800 text-white rounded-2xl font-bold flex items-center gap-2"><Printer size={18}/> Imprimir</button>
+                    <button onClick={() => downloadPDF('report-view', 'Relatorio_Vendas')} className="px-6 py-3 bg-blue-600 text-white rounded-2xl font-bold flex items-center gap-2"><Download size={18}/> PDF</button>
+                  </div>
                 </div>
-            `;
-        }
 
-        function saveProduct() {
-            const name = document.getElementById('prod-name').value;
-            const price = parseFloat(document.getElementById('prod-price').value.replace(',', '.'));
-            if (!name || isNaN(price)) return;
-
-            if (state.editingProduct) {
-                const idx = state.products.findIndex(p => p.id === state.editingProduct.id);
-                state.products[idx] = { ...state.editingProduct, name, price };
-                state.editingProduct = null;
-            } else {
-                state.products.push({ id: Date.now().toString(), name, price });
-            }
-            saveData('pdv_products', state.products);
-            renderContent();
-        }
-
-        function editProduct(id) {
-            state.editingProduct = state.products.find(p => p.id === id);
-            renderContent();
-        }
-
-        function cancelEdit() {
-            state.editingProduct = null;
-            renderContent();
-        }
-
-        function deleteProduct(id) {
-            if (confirm("Excluir produto?")) {
-                state.products = state.products.filter(p => p.id !== id);
-                state.cart = state.cart.filter(c => c.product.id !== id);
-                saveData('pdv_products', state.products);
-                renderContent();
-            }
-        }
-
-        // --- HISTORY LOGIC ---
-        function renderHistory(container) {
-            const list = state.sales.map(s => `
-                <div class="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl p-5 flex flex-col md:flex-row justify-between items-center shadow-sm mb-4">
-                    <div class="w-full">
-                        <div class="flex flex-wrap items-center gap-3 mb-2">
-                            <span class="px-2 py-1 rounded text-xs font-bold ${s.paymentMethod === 'PIX' ? 'bg-teal-100 text-teal-800' : 'bg-emerald-100 text-emerald-800'}">${s.paymentMethod}</span>
-                            <span class="text-sm text-gray-500">${formatDate(s.timestamp)}</span>
-                            ${s.studentInfo ? `<span class="text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded border dark:border-gray-600">👤 ${s.studentInfo.name} (${s.studentInfo.schoolClass})</span>` : ''}
-                        </div>
-                        <p class="text-sm">${s.items.map(i => `${i.quantity}x ${i.product.name}`).join(' • ')}</p>
-                    </div>
-                    <div class="flex items-center gap-4 w-full md:w-auto mt-4 md:mt-0 justify-between">
-                        <span class="text-xl font-black">${formatCurrency(s.total)}</span>
-                        <button onclick="cancelSale('${s.id}')" class="text-red-500 hover:bg-red-50 p-2 rounded-xl flex items-center gap-2 text-sm font-semibold">
-                            <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Estornar
-                        </button>
-                    </div>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                   <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800">
+                      <p className="text-xs font-black uppercase text-slate-400 mb-1">Total Acumulado</p>
+                      <p className="text-3xl font-black text-blue-600">{formatBRL(reportData.total)}</p>
+                   </div>
+                   <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800">
+                      <p className="text-xs font-black uppercase text-slate-400 mb-1">Total PIX</p>
+                      <p className="text-3xl font-black text-teal-500">{formatBRL(reportData.pix)}</p>
+                   </div>
+                   <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800">
+                      <p className="text-xs font-black uppercase text-slate-400 mb-1">Total Dinheiro</p>
+                      <p className="text-3xl font-black text-emerald-500">{formatBRL(reportData.dinheiro)}</p>
+                   </div>
+                   <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800">
+                      <p className="text-xs font-black uppercase text-slate-400 mb-1">Qtd. Vendas</p>
+                      <p className="text-3xl font-black text-slate-700 dark:text-slate-200">{sales.length}</p>
+                   </div>
                 </div>
-            `).join('');
 
-            container.innerHTML = `
-                <div class="max-w-4xl mx-auto no-print">
-                    <h2 class="text-2xl font-bold mb-6">Histórico de Transações</h2>
-                    ${list || `<div class="p-8 text-center bg-white dark:bg-gray-800 rounded-2xl border dark:border-gray-700 text-gray-500">Nenhuma venda registrada.</div>`}
+                <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-8">
+                   <h3 className="text-lg font-black mb-6">Desempenho por Produto</h3>
+                   <div className="space-y-4">
+                      {Object.values(reportData.items).map((item, i) => (
+                        <div key={i} className="flex items-center gap-4">
+                          <div className="flex-1">
+                            <div className="flex justify-between mb-1">
+                              <span className="text-sm font-bold">{item.name}</span>
+                              <span className="text-sm font-black text-blue-500">{item.qty} un</span>
+                            </div>
+                            <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                              <div 
+                                className="bg-blue-500 h-full transition-all duration-1000" 
+                                style={{ width: `${(item.total / reportData.total) * 100}%` }}
+                              />
+                            </div>
+                          </div>
+                          <span className="text-sm font-black w-24 text-right">{formatBRL(item.total)}</span>
+                        </div>
+                      ))}
+                   </div>
                 </div>
-            `;
-        }
+              </div>
+            )}
 
-        function cancelSale(id) {
-            if (confirm("Estornar (cancelar) esta venda?")) {
-                state.sales = state.sales.filter(s => s.id !== id);
-                saveData('pdv_sales', state.sales);
-                renderContent();
-            }
-        }
-
-        // --- REPORT LOGIC ---
-        function getReportData() {
-            return state.sales.reduce((acc, sale) => {
-                acc.total += sale.total;
-                acc.discounts += sale.discount || 0;
-                if (sale.paymentMethod === 'PIX') acc.pix += sale.total;
-                if (sale.paymentMethod === 'DINHEIRO') acc.dinheiro += sale.total;
-
-                sale.items.forEach(item => {
-                    if (!acc.items[item.product.id]) acc.items[item.product.id] = { name: item.product.name, quantity: 0, total: 0 };
-                    acc.items[item.product.id].quantity += item.quantity;
-                    acc.items[item.product.id].total += (item.quantity * item.product.price);
-                });
-                return acc;
-            }, { total: 0, pix: 0, dinheiro: 0, discounts: 0, items: {} });
-        }
-
-        function renderReport(container) {
-            const data = getReportData();
-            
-            const rows = Object.values(data.items).sort((a,b) => b.quantity - a.quantity).map(item => `
-                <tr class="border-b dark:border-gray-700">
-                    <td class="p-4 font-medium">${item.name}</td>
-                    <td class="p-4 text-center font-bold text-blue-600">${item.quantity}</td>
-                    <td class="p-4 text-right">${formatCurrency(item.total)}</td>
-                </tr>
-            `).join('');
-
-            const pixList = state.sales.filter(s => s.paymentMethod === 'PIX').map(s => `
-                <li class="flex justify-between border-b dark:border-gray-700 pb-2">
-                    <span><strong>${s.studentInfo?.name}</strong> (${s.studentInfo?.schoolClass})</span>
-                    <span class="font-bold">${formatCurrency(s.total)}</span>
-                </li>
-            `).join('');
-
-            container.innerHTML = `
-                <div class="max-w-4xl mx-auto">
-                    <div class="print-only text-center mb-8 border-b-2 border-black pb-4">
-                        <h1 class="text-3xl font-black uppercase">${state.settings.eventName}</h1>
-                        <h2 class="text-xl">${state.settings.schoolName}</h2>
-                        <p class="text-xl mt-1">Fechamento Geral de Caixa</p>
-                        <p class="text-sm mt-2 text-gray-600">Impresso em: ${formatDate(new Date().toISOString())}</p>
-                    </div>
-
-                    <div class="flex justify-between items-center mb-6 no-print">
-                        <h2 class="text-2xl font-bold">Relatório de Vendas</h2>
-                        <button onclick="window.print()" class="bg-gray-800 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2">
-                            <i data-lucide="printer" class="w-5 h-5"></i> Imprimir
-                        </button>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                        <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl border-l-4 border-l-blue-500 border shadow-sm">
-                            <p class="text-xs font-bold uppercase text-gray-500">Faturamento Bruto</p>
-                            <p class="text-2xl font-black">${formatCurrency(data.total)}</p>
+            {/* ABA: HISTÓRICO DE VENDAS */}
+            {activeTab === 'history' && (
+              <div className="max-w-4xl mx-auto space-y-6">
+                <h1 className="text-3xl font-black">Histórico de Transações</h1>
+                <div className="space-y-3">
+                  {sales.map(s => (
+                    <div key={s.id} className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:border-blue-500/50 transition-all">
+                      <div className="flex gap-4 items-center">
+                        <div className={`p-3 rounded-2xl ${s.paymentMethod === 'PIX' ? 'bg-teal-50 text-teal-600' : 'bg-blue-50 text-blue-600'}`}>
+                          {s.paymentMethod === 'PIX' ? <CreditCard/> : <Banknote/>}
                         </div>
-                        <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl border-l-4 border-l-teal-500 border shadow-sm">
-                            <p class="text-xs font-bold uppercase text-gray-500">Total PIX</p>
-                            <p class="text-2xl font-black">${formatCurrency(data.pix)}</p>
+                        <div>
+                          <p className="font-black text-slate-800 dark:text-slate-100">{formatBRL(s.total)}</p>
+                          <p className="text-xs text-slate-500 font-bold uppercase">{new Date(s.timestamp).toLocaleString('pt-BR')} • {s.items.length} itens</p>
+                          {s.student && <p className="text-[10px] mt-1 text-blue-500 font-black">👤 {s.student.name} | {s.student.class}</p>}
                         </div>
-                        <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl border-l-4 border-l-emerald-500 border shadow-sm">
-                            <p class="text-xs font-bold uppercase text-gray-500">Total Dinheiro</p>
-                            <p class="text-2xl font-black">${formatCurrency(data.dinheiro)}</p>
-                        </div>
+                      </div>
+                      <button 
+                        onClick={() => setSales(sales.filter(x => x.id !== s.id))}
+                        className="text-red-500 hover:bg-red-50 p-2 rounded-xl text-xs font-black uppercase flex items-center gap-2"
+                      >
+                        <RotateCcw size={14}/> Estornar
+                      </button>
                     </div>
-
-                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 overflow-hidden mb-8">
-                        <div class="p-4 bg-gray-50 dark:bg-gray-900 border-b dark:border-gray-700"><h3 class="font-bold">Quantidades Vendidas</h3></div>
-                        <table class="w-full text-left">
-                            <thead class="text-xs uppercase bg-gray-50 dark:bg-gray-800 border-b dark:border-gray-700">
-                                <tr><th class="p-4">Produto</th><th class="p-4 text-center">Qtd</th><th class="p-4 text-right">Receita</th></tr>
-                            </thead>
-                            <tbody>${rows || `<tr><td colspan="3" class="p-8 text-center">Sem vendas</td></tr>`}</tbody>
-                        </table>
-                        <div class="p-4 bg-gray-50 dark:bg-gray-900 text-right text-sm">
-                            Descontos: <strong class="text-red-500">${formatCurrency(data.discounts)}</strong>
-                        </div>
-                    </div>
-
-                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 overflow-hidden">
-                        <div class="p-4 bg-teal-50 dark:bg-teal-900/30 border-b dark:border-gray-700"><h3 class="font-bold text-teal-800 dark:text-teal-400">Conferência de PIX</h3></div>
-                        <div class="p-4"><ul class="space-y-2 text-sm">${pixList || '<li class="text-gray-500">Nenhum PIX registrado.</li>'}</ul></div>
-                    </div>
-
-                    ${generateSignaturesHTML()}
+                  ))}
                 </div>
-            `;
-        }
+              </div>
+            )}
 
-        // --- CLOSURE (FECHAMENTO DE CAIXA) LOGIC ---
-        function renderClosure(container) {
-            const data = getReportData();
-            const c = state.closureData;
-            const totalFisico = (c.notas100*100) + (c.notas50*50) + (c.notas20*20) + (c.notas10*10) + (c.notas5*5) + (c.notas2*2) + (c.moedas*1);
-            const diferenca = totalFisico - data.dinheiro;
+          </main>
 
-            let statusClass = 'text-gray-500';
-            let statusText = 'Aguardando preenchimento...';
-            
-            if(totalFisico > 0 || data.dinheiro > 0) {
-                if (diferenca === 0) { statusClass = 'text-green-600 bg-green-100 p-2 rounded'; statusText = 'CAIXA BATIDO (Exato)'; }
-                else if (diferenca > 0) { statusClass = 'text-blue-600 bg-blue-100 p-2 rounded'; statusText = `SOBRA DE CAIXA: +${formatCurrency(diferenca)}`; }
-                else { statusClass = 'text-red-600 bg-red-100 p-2 rounded'; statusText = `FALTA DE CAIXA: ${formatCurrency(diferenca)}`; }
-            }
+          {/* CALCULADORA FLUTUANTE */}
+          {isCalcOpen && (
+            <div className="fixed bottom-10 right-10 w-72 bg-white dark:bg-slate-900 rounded-[2rem] shadow-2xl border border-slate-200 dark:border-slate-800 z-50 overflow-hidden animate-in zoom-in-95">
+               <div className="p-4 bg-slate-900 dark:bg-slate-800 flex justify-between items-center text-white">
+                  <div className="flex items-center gap-2 text-xs font-black uppercase tracking-tighter opacity-70">
+                    <Calculator size={14}/> Calculadora
+                  </div>
+                  <button onClick={() => setIsCalcOpen(false)}><X size={18}/></button>
+               </div>
+               <div className="p-4 space-y-4">
+                  <div className="h-16 bg-slate-100 dark:bg-slate-950 rounded-2xl flex items-center justify-end px-4 text-2xl font-black font-mono overflow-hidden">
+                    {calcInput || '0'}
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    {['7','8','9','/','4','5','6','*','1','2','3','-','C','0','+','='].map(btn => (
+                      <button 
+                        key={btn}
+                        onClick={() => {
+                          if (btn === 'C') setCalcInput('');
+                          else if (btn === '=') setCalcInput(String(safeEval(calcInput)));
+                          else setCalcInput(prev => prev + btn);
+                        }}
+                        className={`p-4 rounded-xl font-bold text-sm transition-all active:scale-90 ${btn === '=' ? 'bg-blue-600 text-white col-span-1' : btn === 'C' ? 'bg-red-500 text-white' : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200'}`}
+                      >
+                        {btn}
+                      </button>
+                    ))}
+                  </div>
+               </div>
+            </div>
+          )}
 
-            container.innerHTML = `
-                <div class="max-w-4xl mx-auto">
-                    <div class="print-only text-center mb-8 border-b-2 border-black pb-4">
-                        <h1 class="text-3xl font-black uppercase">${state.settings.eventName}</h1>
-                        <h2 class="text-xl">${state.settings.schoolName}</h2>
-                        <p class="text-xl mt-1">Conferência Física do Caixa (Dinheiro)</p>
-                        <p class="text-sm mt-2 text-gray-600">Data/Hora: ${formatDate(new Date().toISOString())}</p>
-                    </div>
+          {/* MODAL PIX */}
+          {isPixModalOpen && (
+            <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+              <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-in zoom-in-95">
+                <div className="p-8 space-y-6 text-center">
+                  <div className="w-20 h-20 bg-teal-50 dark:bg-teal-900/30 text-teal-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <CreditCard size={40} />
+                  </div>
+                  <h2 className="text-2xl font-black">Pagamento via PIX</h2>
+                  <p className="text-slate-500 font-medium">Solicite o comprovante ao aluno e preencha os dados abaixo.</p>
+                  
+                  <div className="space-y-3 text-left">
+                    <input 
+                      placeholder="Nome do Aluno" 
+                      className="w-full p-4 rounded-2xl bg-slate-100 dark:bg-slate-800 border-none outline-none focus:ring-2 ring-teal-500"
+                      onChange={e => setPixData({...pixData, name: e.target.value})}
+                    />
+                    <input 
+                      placeholder="Série / Turma" 
+                      className="w-full p-4 rounded-2xl bg-slate-100 dark:bg-slate-800 border-none outline-none focus:ring-2 ring-teal-500"
+                      onChange={e => setPixData({...pixData, class: e.target.value})}
+                    />
+                  </div>
 
-                    <div class="flex justify-between items-center mb-6 no-print">
-                        <h2 class="text-2xl font-bold">Fechamento de Cédulas</h2>
-                        <div class="flex gap-2">
-                            <button onclick="downloadClosureCSV()" class="bg-blue-600 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2"><i data-lucide="download" class="w-4 h-4"></i> CSV</button>
-                            <button onclick="window.print()" class="bg-gray-800 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2"><i data-lucide="printer" class="w-4 h-4"></i> Imprimir</button>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border dark:border-gray-700">
-                            <h3 class="font-bold mb-4 border-b pb-2">Contagem de Cédulas</h3>
-                            <div class="space-y-3">
-                                ${[100, 50, 20, 10, 5, 2].map(val => `
-                                    <div class="flex justify-between items-center">
-                                        <span class="w-24">Notas de R$ ${val}</span>
-                                        <input type="number" min="0" value="${c[`notas${val}`]}" onchange="updateClosure('notas${val}', this.value)" class="w-20 text-center p-2 border rounded bg-gray-50 dark:bg-gray-900 no-print">
-                                        <span class="w-24 text-right font-bold print-only border-b border-black inline-block text-center">${c[`notas${val}`]} un.</span>
-                                        <span class="w-24 text-right">${formatCurrency(c[`notas${val}`] * val)}</span>
-                                    </div>
-                                `).join('')}
-                                <div class="flex justify-between items-center pt-2 border-t">
-                                    <span class="w-24">Moedas (R$)</span>
-                                    <input type="number" step="0.05" min="0" value="${c.moedas}" onchange="updateClosure('moedas', this.value)" class="w-20 text-center p-2 border rounded bg-gray-50 dark:bg-gray-900 no-print">
-                                    <span class="w-24 text-right font-bold print-only border-b border-black inline-block text-center">${formatCurrency(c.moedas)}</span>
-                                    <span class="w-24 text-right">${formatCurrency(c.moedas)}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="space-y-4">
-                            <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border dark:border-gray-700">
-                                <p class="text-sm text-gray-500 mb-1">Total no Sistema (Vendas em Dinheiro)</p>
-                                <p class="text-3xl font-black">${formatCurrency(data.dinheiro)}</p>
-                            </div>
-                            <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border dark:border-gray-700">
-                                <p class="text-sm text-gray-500 mb-1">Total Físico Contado</p>
-                                <p class="text-3xl font-black text-blue-600">${formatCurrency(totalFisico)}</p>
-                            </div>
-                            <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border dark:border-gray-700 text-center">
-                                <p class="font-bold text-lg mb-2">Resultado da Conferência</p>
-                                <div class="text-lg font-black uppercase ${statusClass}">${statusText}</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    ${generateSignaturesHTML()}
+                  <div className="pt-4 flex gap-3">
+                    <button onClick={() => setIsPixModalOpen(false)} className="flex-1 py-4 font-black uppercase text-xs text-slate-500">Cancelar</button>
+                    <button onClick={() => processCheckout('PIX')} className="flex-1 py-4 bg-teal-500 text-white rounded-2xl font-black uppercase text-xs shadow-xl shadow-teal-500/20">Confirmar Venda</button>
+                  </div>
                 </div>
-            `;
-        }
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
 
-        function updateClosure(field, value) {
-            state.closureData[field] = Number(value) || 0;
-            saveData('pdv_closure', state.closureData);
-            renderContent();
-        }
-
-        function downloadClosureCSV() {
-            const c = state.closureData;
-            const data = getReportData();
-            const totalFisico = (c.notas100*100) + (c.notas50*50) + (c.notas20*20) + (c.notas10*10) + (c.notas5*5) + (c.notas2*2) + (c.moedas*1);
-            
-            let csv = "Tipo,Quantidade,Total\n";
-            csv += `Notas de 100,${c.notas100},${c.notas100*100}\n`;
-            csv += `Notas de 50,${c.notas50},${c.notas50*50}\n`;
-            csv += `Notas de 20,${c.notas20},${c.notas20*20}\n`;
-            csv += `Notas de 10,${c.notas10},${c.notas10*10}\n`;
-            csv += `Notas de 5,${c.notas5},${c.notas5*5}\n`;
-            csv += `Notas de 2,${c.notas2},${c.notas2*2}\n`;
-            csv += `Moedas,,${c.moedas}\n`;
-            csv += `TOTAL FISICO,,${totalFisico}\n`;
-            csv += `TOTAL SISTEMA,,${data.dinheiro}\n`;
-            csv += `DIFERENCA,,${totalFisico - data.dinheiro}\n`;
-
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.setAttribute('href', url);
-            a.setAttribute('download', 'fechamento_caixa.csv');
-            a.click();
-        }
-
-        function generateSignaturesHTML() {
-            return `
-                <div class="print-flex hidden justify-between items-end mt-24 pt-8 w-full gap-4">
-                    <div class="text-center border-t border-black w-1/4 pt-2 text-xs font-bold">COORD. GERAL</div>
-                    <div class="text-center border-t border-black w-1/4 pt-2 text-xs font-bold">COORD. FIN.</div>
-                    <div class="text-center border-t border-black w-1/4 pt-2 text-xs font-bold">OPERADOR DE CAIXA</div>
-                    <div class="border border-black w-32 h-32 flex flex-col items-center justify-center text-xs text-gray-500 font-bold p-2">
-                        <span class="mb-auto mt-2 text-black">CARIMBO</span>
-                        <span class="text-[10px] mt-auto">Grêmio Estudantil</span>
-                    </div>
-                </div>
-            `;
-        }
-
-        // --- SETTINGS & LOGS LOGIC ---
-        function renderSettings(container) {
-            container.innerHTML = `
-                <div class="max-w-4xl mx-auto space-y-6 no-print">
-                    <h2 class="text-2xl font-bold mb-6">Configurações e Logs</h2>
-                    
-                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 p-6">
-                        <h3 class="font-bold mb-4">Informações da Organização</h3>
-                        <div class="space-y-4">
-                            <div>
-                                <label class="block text-sm font-semibold mb-2">Nome do Grêmio ou Evento</label>
-                                <input type="text" id="cfg-event" value="${state.settings.eventName}" onchange="updateSettings('eventName', this.value)" class="w-full p-3 bg-gray-50 dark:bg-gray-900 border rounded-xl">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-semibold mb-2">Nome da Escola</label>
-                                <input type="text" id="cfg-school" value="${state.settings.schoolName}" onchange="updateSettings('schoolName', this.value)" class="w-full p-3 bg-gray-50 dark:bg-gray-900 border rounded-xl">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-semibold mb-2">Desenvolvedor / Equipe</label>
-                                <input type="text" value="${state.settings.developer}" disabled class="w-full p-3 bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-500 opacity-70 cursor-not-allowed">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="bg-gray-900 rounded-2xl shadow-sm border border-gray-700 p-6">
-                        <div class="flex justify-between items-center mb-4">
-                            <h3 class="font-bold text-white flex items-center gap-2"><i data-lucide="terminal" class="w-5 h-5"></i> Logs do Sistema (JSON)</h3>
-                            <button onclick="downloadLogs()" class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm transition-colors">Exportar Backup</button>
-                        </div>
-                        <textarea readonly class="w-full h-64 p-4 bg-black text-green-400 font-mono text-sm rounded-xl outline-none resize-y border border-gray-700">${JSON.stringify({ vendas: state.sales, cardapio: state.products }, null, 2)}</textarea>
-                        <p class="text-xs text-gray-400 mt-2">Visão direta do banco de dados local. Útil para auditoria e backups.</p>
-                    </div>
-
-                    <div class="bg-red-50 dark:bg-red-900/20 rounded-2xl shadow-sm border border-red-200 dark:border-red-800/50 p-6">
-                        <h3 class="font-bold text-red-800 dark:text-red-400 mb-2 flex items-center gap-2"><i data-lucide="alert-triangle" class="w-5 h-5"></i> Zona de Perigo</h3>
-                        <p class="text-sm text-red-600 dark:text-red-300 mb-4">Ao encerrar o evento, todo o histórico de vendas e fechamentos será apagado permanentemente.</p>
-                        <button onclick="resetSystem()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-xl transition-colors">
-                            Encerrar Evento (Zerar Vendas e Caixa)
-                        </button>
-                    </div>
-                </div>
-            `;
-        }
-
-        function updateSettings(key, value) {
-            state.settings[key] = value;
-            saveData('pdv_settings', state.settings);
-            updateHeaders();
-        }
-
-        function downloadLogs() {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
-                data_exportacao: new Date().toISOString(),
-                configuracoes: state.settings,
-                vendas: state.sales,
-                fechamento: state.closureData
-            }, null, 2));
-            const a = document.createElement('a');
-            a.setAttribute("href", dataStr);
-            a.setAttribute("download", "backup_pdv.json");
-            a.click();
-        }
-
-        function resetSystem() {
-            if (confirm(`Você tem certeza absoluta?\nIsso apagará as ${state.sales.length} vendas registradas e zerará o fechamento de caixa.`)) {
-                state.sales = [];
-                state.closureData = { notas100: 0, notas50: 0, notas20: 0, notas10: 0, notas5: 0, notas2: 0, moedas: 0 };
-                saveData('pdv_sales', state.sales);
-                saveData('pdv_closure', state.closureData);
-                navigate('pos');
-            }
-        }
-
-        // Initialize application
-        init();
-    </script>
+    const root = createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
 </body>
 </html>
