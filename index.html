@@ -2,31 +2,61 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <meta name="theme-color" content="#2563eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="PDV Grêmio">
+    
+    <link rel="manifest" href="manifest.json">
     
     <link rel="icon" type="image/png" href="https://i.ibb.co/pjgs4cZW/Design-sem-nome-2.png">
+    <link rel="apple-touch-icon" href="https://i.ibb.co/pjgs4cZW/Design-sem-nome-2.png">
     
     <title>Financeiro Grêmio</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-    }
-  </script>
-
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-  <script type="importmap">
-    {
-      "imports": {
-        "react": "https://esm.sh/react@18.2.0",
-        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
-        "lucide-react": "https://esm.sh/lucide-react@0.330.0?deps=react@18.2.0"
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: { extend: { colors: { brand: 'var(--brand-color)', 'brand-hover': 'var(--brand-hover)' } } }
       }
-    }
-  </script>
+    </script>
+
+    <style>
+      :root { --brand-color: #2563eb; --brand-hover: #1d4ed8; }
+      .theme-emerald { --brand-color: #059669; --brand-hover: #047857; }
+      .theme-violet { --brand-color: #7c3aed; --brand-hover: #6d28d9; }
+      .theme-rose { --brand-color: #e11d48; --brand-hover: #be123c; }
+      .theme-amber { --brand-color: #d97706; --brand-hover: #b45309; }
+      .theme-cyan { --brand-color: #0891b2; --brand-hover: #0e7490; }
+      .theme-pink { --brand-color: #db2777; --brand-hover: #be185d; }
+      .theme-slate { --brand-color: #475569; --brand-hover: #334155; }
+
+      /* Animação do Countdown das notificações */
+      @keyframes countdown {
+        from { width: 100%; }
+        to { width: 0%; }
+      }
+      .toast-progress {
+        animation: countdown 4s linear forwards;
+      }
+    </style>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "react": "https://esm.sh/react@18.2.0",
+          "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+          "lucide-react": "https://esm.sh/lucide-react@0.330.0?deps=react@18.2.0"
+        }
+      }
+    </script>
 </head>
+
 <body class="transition-colors duration-300 bg-gray-100 dark:bg-gray-950 text-gray-800 dark:text-gray-100">
   <div id="root"></div>
 
@@ -37,7 +67,7 @@
       ShoppingCart, Settings, Tag, PlusCircle, MinusCircle, CheckCircle, 
       CreditCard, Banknote, X, Edit2, Trash2, RotateCcw, LayoutDashboard, 
       History, Printer, Download, Calculator, Lock, Sun, Moon, AlertTriangle, Info,
-      GripHorizontal, Archive, Image as ImageIcon
+      GripHorizontal, Archive, Image as ImageIcon, Save, Upload, Palette, FileSpreadsheet, Bell, BellOff, Eye
     } from 'lucide-react';
 
     function App() {
@@ -52,7 +82,8 @@
       const defaultSettings = { 
         eventName: 'Evento Atual', 
         gremioName: 'Grêmio Estudantil',
-        logoUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ1jvlQ6U_vRu2P3HDiuX9V11-93jeq1u78JI4yT7w6tdOClxB2N-bglMI&s=10'
+        logoUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ1jvlQ6U_vRu2P3HDiuX9V11-93jeq1u78JI4yT7w6tdOClxB2N-bglMI&s=10',
+        accentColor: 'blue'
       };
       
       const [settings, setSettings] = useState(() => {
@@ -73,7 +104,6 @@
       };
       const [cashDrawer, setCashDrawer] = useState(() => loadData('pdv_cash_drawer', defaultDrawer));
 
-      // Modais Customizados
       const [isCalcOpen, setIsCalcOpen] = useState(false);
       const [calcInput, setCalcInput] = useState('');
       const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', text: '', action: null, isDanger: false });
@@ -84,9 +114,47 @@
       const [prodName, setProdName] = useState('');
       const [prodPrice, setProdPrice] = useState('');
       
-      const [checkoutMsg, setCheckoutMsg] = useState('');
       const [pixStudentName, setPixStudentName] = useState('');
       const [pixStudentClass, setPixStudentClass] = useState('');
+      
+      // Estado para visualização de eventos anteriores
+      const [viewingEvent, setViewingEvent] = useState(null);
+
+      // --- SISTEMA DE NOTIFICAÇÕES EMPILHADAS (TOAST) ---
+      const [toasts, setToasts] = useState([]);
+      const [isMuted, setIsMuted] = useState(false);
+
+      const playBeep = () => {
+        if (isMuted) return;
+        try {
+          const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          const oscillator = audioCtx.createOscillator();
+          const gainNode = audioCtx.createGain();
+          oscillator.connect(gainNode);
+          gainNode.connect(audioCtx.destination);
+          oscillator.type = 'sine';
+          oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
+          gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime);
+          oscillator.start();
+          gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.1);
+          oscillator.stop(audioCtx.currentTime + 0.1);
+        } catch (e) {}
+      };
+
+      const showToast = (message, type = 'success') => {
+        if (isMuted) return; // Se estiver silenciado, não exibe
+        const id = Date.now();
+        setToasts(prev => [...prev, { id, message, type }]);
+        playBeep();
+        
+        setTimeout(() => {
+          setToasts(prev => prev.filter(t => t.id !== id));
+        }, 3000);
+      };
+
+      const removeToast = (id) => {
+        setToasts(prev => prev.filter(t => t.id !== id));
+      };
 
       // Persistência
       useEffect(() => { localStorage.setItem('pdv_theme', JSON.stringify(theme)); }, [theme]);
@@ -96,11 +164,16 @@
       useEffect(() => { localStorage.setItem('pdv_sales', JSON.stringify(sales)); }, [sales]);
       useEffect(() => { localStorage.setItem('pdv_cash_drawer', JSON.stringify(cashDrawer)); }, [cashDrawer]);
 
-      // Aplicação do Tema Dark/Light
+      // Aplicação do Tema Dark/Light e Cores
       useEffect(() => {
         if (theme === 'dark') document.documentElement.classList.add('dark');
         else document.documentElement.classList.remove('dark');
-      }, [theme]);
+
+        document.documentElement.className = document.documentElement.className.replace(/theme-\w+/g, '');
+        if(settings.accentColor !== 'blue') {
+          document.documentElement.classList.add(`theme-${settings.accentColor}`);
+        }
+      }, [theme, settings.accentColor]);
 
       // Utilitários
       const formatCurrency = (val) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -121,6 +194,11 @@
           if (exists.quantity === 1) return prev.filter(i => i.product.id !== productId);
           return prev.map(i => i.product.id === productId ? { ...i, quantity: i.quantity - 1 } : i);
         });
+      };
+
+      const clearCart = () => {
+        setCart([]);
+        setCartDiscount(0);
       };
 
       const cartSubtotal = cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
@@ -146,17 +224,19 @@
           studentInfo: paymentMethod === 'PIX' ? { name: pixStudentName, schoolClass: pixStudentClass } : null
         };
 
-        setSales([newSale, ...sales]); setCart([]); setCartDiscount(0);
+        setSales([newSale, ...sales]); clearCart();
         setPixStudentName(''); setPixStudentClass(''); setIsPixModalOpen(false);
 
-        setCheckoutMsg(`Sucesso! ${formatCurrency(cartTotal)} via ${paymentMethod}`);
-        setTimeout(() => setCheckoutMsg(''), 3000);
+        showToast(`Venda concluída: ${formatCurrency(cartTotal)} via ${paymentMethod}`);
       };
 
       const cancelSale = (saleId) => {
         setConfirmDialog({
           isOpen: true, title: 'Estornar Venda', text: 'Tem certeza que deseja estornar (cancelar) esta venda? Ela será removida do histórico atual.', isDanger: true,
-          action: () => setSales(sales.filter(s => s.id !== saleId))
+          action: () => {
+            setSales(sales.filter(s => s.id !== saleId));
+            showToast('Venda estornada com sucesso!', 'info');
+          }
         });
       };
 
@@ -168,8 +248,10 @@
         if (editingProduct) {
           setProducts(products.map(p => p.id === editingProduct.id ? { ...p, name: prodName, price: priceNum } : p));
           setEditingProduct(null);
+          showToast('Produto atualizado com sucesso!');
         } else {
           setProducts([...products, { id: Date.now().toString(), name: prodName, price: priceNum }]);
+          showToast('Produto adicionado ao cardápio!');
         }
         setProdName(''); setProdPrice('');
       };
@@ -180,11 +262,70 @@
           action: () => {
             setProducts(products.filter(p => p.id !== id));
             setCart(cart.filter(item => item.product.id !== id));
+            showToast('Produto removido!', 'info');
           }
         });
       };
 
-      // --- EXPORTAÇÃO E CÁLCULOS ---
+      // --- EXPORTAÇÃO E BACKUP ---
+      const exportCSV = () => {
+        let csvContent = "Data,Hora,Metodo,Estudante,Turma,Itens,Desconto,Total\n";
+        sales.forEach(sale => {
+          const date = new Date(sale.timestamp);
+          const student = sale.studentInfo ? sale.studentInfo.name : 'N/A';
+          const tClass = sale.studentInfo ? sale.studentInfo.schoolClass : 'N/A';
+          const items = sale.items.map(i => `${i.quantity}x ${i.product.name}`).join(';');
+          csvContent += `${date.toLocaleDateString('pt-BR')},${date.toLocaleTimeString('pt-BR')},${sale.paymentMethod},${student},${tClass},"${items}",${sale.discount || 0},${sale.total}\n`;
+        });
+        
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `Vendas_${settings.eventName.replace(/\s+/g, '_')}.csv`;
+        link.click();
+        showToast('Planilha CSV exportada!');
+      };
+
+      const handleExportBackup = () => {
+        const backupData = {
+          theme, settings, eventLogs, products, sales, cashDrawer, exportDate: new Date().toISOString()
+        };
+        const blob = new Blob([JSON.stringify(backupData)], { type: 'application/json' });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `Backup_Gremio_${new Date().getTime()}.json`;
+        link.click();
+        showToast('Backup baixado com sucesso!');
+      };
+
+      const handleImportBackup = (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const data = JSON.parse(e.target.result);
+            if(data.settings && data.products) {
+              localStorage.setItem('pdv_theme', JSON.stringify(data.theme || 'light'));
+              localStorage.setItem('pdv_settings', JSON.stringify(data.settings));
+              localStorage.setItem('pdv_event_logs', JSON.stringify(data.eventLogs || []));
+              localStorage.setItem('pdv_products', JSON.stringify(data.products));
+              localStorage.setItem('pdv_sales', JSON.stringify(data.sales || []));
+              localStorage.setItem('pdv_cash_drawer', JSON.stringify(data.cashDrawer || defaultDrawer));
+              
+              setAlertDialog({ isOpen: true, title: 'Sucesso', text: 'Backup restaurado! A página será recarregada.'});
+              setTimeout(() => window.location.reload(), 2000);
+            } else {
+              throw new Error("Arquivo inválido");
+            }
+          } catch (err) {
+            setAlertDialog({ isOpen: true, title: 'Erro', text: 'O arquivo selecionado não é um backup válido do sistema.'});
+          }
+        };
+        reader.readAsText(file);
+      };
+
       const getReport = (salesData = sales) => {
         return salesData.reduce((acc, sale) => {
           acc.total += sale.total;
@@ -201,11 +342,9 @@
         }, { total: 0, pix: 0, dinheiro: 0, discounts: 0, items: {} });
       };
 
-      // Funcionalidade de Impressão (Força tema claro)
       const executeWithLightMode = (callback) => {
         const wasDark = document.documentElement.classList.contains('dark');
         if (wasDark) document.documentElement.classList.remove('dark');
-        
         setTimeout(() => {
           callback(() => {
             if (wasDark) document.documentElement.classList.add('dark');
@@ -216,7 +355,6 @@
       const requestPrint = () => {
         executeWithLightMode((restoreTheme) => {
           window.print();
-          // Timeout de segurança após a janela de impressão abrir
           setTimeout(restoreTheme, 1000); 
         });
       };
@@ -231,7 +369,10 @@
             html2canvas: { scale: 2, useCORS: true },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
           };
-          html2pdf().set(opt).from(element).save().then(restoreTheme);
+          html2pdf().set(opt).from(element).save().then(() => {
+            restoreTheme();
+            showToast('PDF baixado com sucesso!');
+          });
         });
       };
 
@@ -291,7 +432,7 @@
       };
 
       const NavItem = ({ id, icon: Icon, label }) => (
-        <button onClick={() => setActiveTab(id)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-medium ${activeTab === id ? 'bg-blue-600 text-white shadow-md' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
+        <button onClick={() => setActiveTab(id)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-medium ${activeTab === id ? 'bg-brand text-white shadow-md' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
           <Icon size={20} /> <span className="hidden md:block">{label}</span>
         </button>
       );
@@ -300,31 +441,55 @@
       const drawerTotal = calculateDrawerTotal();
       const drawerDiff = drawerTotal - reportData.dinheiro;
 
+      const themeColors = {
+        blue: 'bg-blue-600', emerald: 'bg-emerald-600', violet: 'bg-violet-600', rose: 'bg-rose-600',
+        amber: 'bg-amber-600', cyan: 'bg-cyan-600', pink: 'bg-pink-600', slate: 'bg-slate-600'
+      };
+
       return (
         <div className="min-h-screen flex w-full">
           
+          {/* ================= SISTEMA DE NOTIFICAÇÕES (TOASTS) ================= */}
+          <div className="fixed bottom-6 right-6 z-[200] flex flex-col items-end gap-3 pointer-events-none">
+            <button onClick={() => setIsMuted(!isMuted)} className="p-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full shadow-lg pointer-events-auto transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 mb-2">
+              {isMuted ? <BellOff size={18} className="text-red-500" /> : <Bell size={18} />}
+            </button>
+            
+            {toasts.map(t => (
+              <div key={t.id} className={`relative overflow-hidden px-6 py-4 rounded-xl shadow-2xl flex flex-col justify-center min-w-[280px] pointer-events-auto transition-all duration-300 animate-in slide-in-from-bottom-2 fade-in ${t.type === 'error' ? 'bg-red-500' : 'bg-brand'}`}>
+                <div className="flex items-center justify-between gap-4 text-white font-bold">
+                  <div className="flex items-center gap-2">
+                    {t.type === 'error' ? <AlertTriangle size={20}/> : <CheckCircle size={20} />}
+                    <span>{t.message}</span>
+                  </div>
+                  <button onClick={() => removeToast(t.id)} className="text-white/80 hover:text-white"><X size={16} /></button>
+                </div>
+                {/* Linha de Countdown inferior */}
+                <div className="absolute bottom-0 left-0 h-1 bg-white/40 toast-progress"></div>
+              </div>
+            ))}
+          </div>
+
           {/* ================= MODAIS ESCONDIDOS ================= */}
           
-          {/* Alerta Simples */}
           {alertDialog.isOpen && (
             <div className="absolute inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm print:hidden">
               <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-sm p-6 animate-in zoom-in-95">
-                <div className="flex items-center gap-3 mb-4 text-blue-600 dark:text-blue-400">
+                <div className="flex items-center gap-3 mb-4 text-brand">
                   <Info size={28}/> <h3 className="text-xl font-bold">{alertDialog.title}</h3>
                 </div>
                 <p className="text-gray-700 dark:text-gray-300 mb-6">{alertDialog.text}</p>
-                <button onClick={() => setAlertDialog({isOpen: false})} className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-colors">
+                <button onClick={() => setAlertDialog({isOpen: false})} className="w-full py-3 bg-brand hover:bg-brand-hover text-white rounded-xl font-bold transition-colors">
                   Entendi
                 </button>
               </div>
             </div>
           )}
 
-          {/* Confirmação (Sim/Não) */}
           {confirmDialog.isOpen && (
             <div className="absolute inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm print:hidden">
               <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-sm p-6 animate-in zoom-in-95">
-                <div className={`flex items-center gap-3 mb-4 ${confirmDialog.isDanger ? 'text-red-500' : 'text-blue-600 dark:text-blue-400'}`}>
+                <div className={`flex items-center gap-3 mb-4 ${confirmDialog.isDanger ? 'text-red-500' : 'text-brand'}`}>
                   {confirmDialog.isDanger ? <AlertTriangle size={28}/> : <Info size={28}/>} 
                   <h3 className="text-xl font-bold">{confirmDialog.title}</h3>
                 </div>
@@ -333,7 +498,7 @@
                   <button onClick={() => setConfirmDialog({...confirmDialog, isOpen: false})} className="flex-1 py-3 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-xl font-bold hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
                     Cancelar
                   </button>
-                  <button onClick={() => { confirmDialog.action(); setConfirmDialog({...confirmDialog, isOpen: false}); }} className={`flex-1 py-3 text-white rounded-xl font-bold transition-colors ${confirmDialog.isDanger ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}>
+                  <button onClick={() => { confirmDialog.action(); setConfirmDialog({...confirmDialog, isOpen: false}); }} className={`flex-1 py-3 text-white rounded-xl font-bold transition-colors ${confirmDialog.isDanger ? 'bg-red-600 hover:bg-red-700' : 'bg-brand hover:bg-brand-hover'}`}>
                     Confirmar
                   </button>
                 </div>
@@ -341,26 +506,70 @@
             </div>
           )}
 
-          {/* Calculadora Flutuante e Móvel */}
+          {/* --- MODAL PARA VER EVENTO ESPECÍFICO --- */}
+          {viewingEvent && (
+            <div className="absolute inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm print:hidden">
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col animate-in zoom-in-95">
+                <div className="flex justify-between items-center p-5 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded-t-2xl">
+                  <div>
+                    <h3 className="font-bold text-xl text-gray-800 dark:text-gray-100">{viewingEvent.eventName}</h3>
+                    <p className="text-sm text-gray-500">{new Date(viewingEvent.date).toLocaleString('pt-BR')}</p>
+                  </div>
+                  <button onClick={() => setViewingEvent(null)} className="text-gray-500 hover:text-red-500 transition-colors"><X size={24}/></button>
+                </div>
+                <div className="p-5 overflow-y-auto flex-1 space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 p-4 rounded-xl text-center">
+                      <p className="text-xs uppercase font-bold text-emerald-600 dark:text-emerald-400 mb-1">Total Arrecadado</p>
+                      <p className="font-black text-2xl text-emerald-700 dark:text-emerald-300">{formatCurrency(viewingEvent.totalSales)}</p>
+                    </div>
+                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-4 rounded-xl text-center">
+                      <p className="text-xs uppercase font-bold text-blue-600 dark:text-blue-400 mb-1">Volume de Vendas</p>
+                      <p className="font-black text-2xl text-blue-700 dark:text-blue-300">{viewingEvent.salesCount}</p>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h4 className="font-bold text-lg border-b dark:border-gray-700 pb-2 mb-4 text-gray-700 dark:text-gray-300">Todas as Transações</h4>
+                    {viewingEvent.salesData && viewingEvent.salesData.length > 0 ? (
+                      <div className="space-y-3">
+                        {viewingEvent.salesData.map(sale => (
+                          <div key={sale.id} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-4 rounded-xl shadow-sm flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+                            <div>
+                              <div className="flex gap-2 items-center mb-1">
+                                <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${sale.paymentMethod === 'PIX' ? 'bg-teal-100 text-teal-800 dark:bg-teal-900/50 dark:text-teal-300' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300'}`}>
+                                  {sale.paymentMethod}
+                                </span>
+                                <span className="text-xs text-gray-500">{new Date(sale.timestamp).toLocaleTimeString('pt-BR')}</span>
+                              </div>
+                              <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                                {sale.items.map(i => `${i.quantity}x ${i.product.name}`).join(' • ')}
+                              </p>
+                            </div>
+                            <div className="font-black text-lg text-gray-900 dark:text-gray-100 text-right">
+                              {formatCurrency(sale.total)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-gray-500 text-sm text-center py-4">Nenhuma venda registrada nos detalhes deste evento.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {isCalcOpen && (
-            <div 
-              ref={calcRef}
-              style={{ transform: `translate(${calcPos.current.x}px, ${calcPos.current.y}px)` }}
-              className="fixed top-0 left-0 z-50 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 w-64 print:hidden animate-in fade-in overflow-hidden"
-            >
-              {/* Header arrastável */}
-              <div 
-                className="flex justify-between items-center p-3 bg-gray-100 dark:bg-gray-900 cursor-move border-b border-gray-200 dark:border-gray-700"
-                onMouseDown={handleCalcDragStart}
-                onTouchStart={handleCalcDragStart}
-              >
+            <div ref={calcRef} style={{ transform: `translate(${calcPos.current.x}px, ${calcPos.current.y}px)` }} className="fixed top-0 left-0 z-50 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 w-64 print:hidden animate-in fade-in overflow-hidden">
+              <div className="flex justify-between items-center p-3 bg-gray-100 dark:bg-gray-900 cursor-move border-b border-gray-200 dark:border-gray-700" onMouseDown={handleCalcDragStart} onTouchStart={handleCalcDragStart}>
                 <div className="flex items-center gap-2 text-gray-500">
                   <GripHorizontal size={16}/>
                   <span className="font-bold text-sm uppercase">Calculadora</span>
                 </div>
                 <button onClick={() => setIsCalcOpen(false)} className="text-gray-500 hover:text-red-500"><X size={18}/></button>
               </div>
-              
               <div className="p-4">
                 <div className="bg-gray-100 dark:bg-gray-900 p-3 rounded-xl text-right text-2xl font-mono mb-3 overflow-hidden border dark:border-gray-700 h-14 flex items-center justify-end">
                   {calcInput || '0'}
@@ -369,13 +578,12 @@
                   {['7','8','9','÷','4','5','6','×','1','2','3','-','C','0',',','+'].map(btn => (
                     <button key={btn} onClick={() => handleCalcBtn(btn)} className={`p-3 rounded-lg font-bold text-lg transition-colors ${btn === 'C' ? 'bg-red-500 text-white hover:bg-red-600' : ['÷','×','-','+'].includes(btn) ? 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600' : 'bg-gray-50 dark:bg-gray-800 border dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>{btn}</button>
                   ))}
-                  <button onClick={() => handleCalcBtn('=')} className="col-span-4 p-3 bg-blue-600 text-white rounded-lg font-bold text-lg hover:bg-blue-700 transition-colors">=</button>
+                  <button onClick={() => handleCalcBtn('=')} className="col-span-4 p-3 bg-brand text-white rounded-lg font-bold text-lg hover:bg-brand-hover transition-colors">=</button>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Modal PIX */}
           {isPixModalOpen && (
             <div className="absolute inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm print:hidden">
               <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95">
@@ -407,13 +615,13 @@
 
           {/* ================= BARRA LATERAL ================= */}
           <aside className="w-20 md:w-64 border-r dark:border-gray-800 flex flex-col p-4 shadow-sm print:hidden transition-all duration-300 z-10 shrink-0 h-screen overflow-y-auto bg-white dark:bg-gray-900">
-            <div className="flex items-center gap-3 px-2 mb-8 mt-2 text-blue-600 dark:text-blue-500">
+            <div className="flex items-center gap-3 px-2 mb-8 mt-2 text-brand">
               <img src={settings.logoUrl} alt="Logo" className="w-10 h-10 rounded-full object-cover border-2 border-current shrink-0 bg-white" />
               <div className="hidden md:block overflow-hidden">
                 <h1 className="text-sm font-bold tracking-tight text-ellipsis whitespace-nowrap text-gray-800 dark:text-gray-200">
                   {settings.gremioName}
                 </h1>
-                <p className="text-xs text-blue-600 truncate">{settings.eventName}</p>
+                <p className="text-xs text-brand truncate">{settings.eventName}</p>
               </div>
             </div>
 
@@ -421,8 +629,8 @@
               <NavItem id="pos" icon={ShoppingCart} label="Caixa (PDV)" />
               <NavItem id="products" icon={Tag} label="Cardápio" />
               <NavItem id="history" icon={History} label="Histórico Atual" />
-              <NavItem id="report" icon={LayoutDashboard} label="Relatório de Vendas" />
-              <NavItem id="closing" icon={Lock} label="Fechamento (Gaveta)" />
+              <NavItem id="report" icon={LayoutDashboard} label="Relatório" />
+              <NavItem id="closing" icon={Lock} label="Fechamento" />
             </nav>
 
             <div className="mt-auto space-y-2 pt-4 border-t border-gray-200 dark:border-gray-800">
@@ -451,20 +659,25 @@
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4 overflow-y-auto pb-4 pr-2">
                       {products.map(p => (
-                        <button key={p.id} onClick={() => addToCart(p)} className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl p-4 flex flex-col items-center justify-center text-center shadow-sm hover:border-blue-400 transition-all active:scale-95 group">
-                          <span className="font-semibold mb-2 group-hover:text-blue-500">{p.name}</span>
-                          <span className="text-blue-700 dark:text-blue-300 font-bold bg-blue-50 dark:bg-blue-900/30 px-3 py-1 rounded-lg">{formatCurrency(p.price)}</span>
+                        <button key={p.id} onClick={() => addToCart(p)} className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl p-4 flex flex-col items-center justify-center text-center shadow-sm hover:border-brand transition-all active:scale-95 group">
+                          <span className="font-semibold mb-2 group-hover:text-brand">{p.name}</span>
+                          <span className="text-brand font-bold bg-brand/10 dark:bg-brand/20 px-3 py-1 rounded-lg">{formatCurrency(p.price)}</span>
                         </button>
                       ))}
                     </div>
                   </div>
 
                   <div className="w-full lg:w-96 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl shadow-sm flex flex-col h-[600px] lg:h-full shrink-0">
-                    <div className="p-4 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 rounded-t-2xl">
-                      <h3 className="text-lg font-bold flex justify-between items-center">
-                        Comanda Atual
-                        <span className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs px-2 py-1 rounded-full">{cart.reduce((sum, i) => sum + i.quantity, 0)} itens</span>
+                    <div className="p-4 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 rounded-t-2xl flex justify-between items-center">
+                      <h3 className="text-lg font-bold flex items-center gap-2">
+                        Comanda
+                        <span className="bg-brand/20 text-brand text-xs px-2 py-1 rounded-full">{cart.reduce((sum, i) => sum + i.quantity, 0)} itens</span>
                       </h3>
+                      {cart.length > 0 && (
+                        <button onClick={clearCart} className="text-sm text-red-500 hover:text-red-700 font-semibold flex items-center gap-1">
+                          <Trash2 size={14} /> Limpar
+                        </button>
+                      )}
                     </div>
                     <div className="flex-1 overflow-y-auto p-4 space-y-4">
                       {cart.map(item => (
@@ -477,7 +690,7 @@
                             <div className="flex items-center bg-white dark:bg-gray-800 rounded-lg border dark:border-gray-600 shadow-sm">
                               <button onClick={() => removeFromCart(item.product.id)} className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30"><MinusCircle size={16}/></button>
                               <span className="w-6 text-center font-bold text-sm">{item.quantity}</span>
-                              <button onClick={() => addToCart(item.product)} className="p-1.5 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30"><PlusCircle size={16}/></button>
+                              <button onClick={() => addToCart(item.product)} className="p-1.5 text-brand hover:bg-brand/10 dark:hover:bg-brand/20"><PlusCircle size={16}/></button>
                             </div>
                             <div className="font-bold text-sm w-16 text-right">{formatCurrency(item.product.price * item.quantity)}</div>
                           </div>
@@ -493,10 +706,9 @@
                         <span className="font-medium">Total a Pagar:</span>
                         <div className="text-right">
                           {cartDiscount > 0 && <span className="text-sm text-gray-400 line-through block">{formatCurrency(cartSubtotal)}</span>}
-                          <span className="text-3xl font-black text-blue-600 dark:text-blue-400">{formatCurrency(cartTotal)}</span>
+                          <span className="text-3xl font-black text-brand">{formatCurrency(cartTotal)}</span>
                         </div>
                       </div>
-                      {checkoutMsg && <div className="mb-4 bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 p-3 rounded-xl text-sm font-medium flex justify-center gap-2 animate-pulse"><CheckCircle size={18} /> {checkoutMsg}</div>}
                       <div className="grid grid-cols-2 gap-2">
                         <button onClick={() => processCheckout('DINHEIRO')} disabled={cart.length===0} className="bg-emerald-500 hover:bg-emerald-600 text-white py-3 rounded-xl font-bold flex flex-col items-center justify-center gap-1 active:scale-95 disabled:opacity-50"><Banknote size={20} /> <span className="text-xs">Dinheiro</span></button>
                         <button onClick={handlePixClick} disabled={cart.length===0} className="bg-teal-500 hover:bg-teal-600 text-white py-3 rounded-xl font-bold flex flex-col items-center justify-center gap-1 active:scale-95 disabled:opacity-50"><CreditCard size={20} /> <span className="text-xs">PIX</span></button>
@@ -522,7 +734,7 @@
                       </div>
                       <div className="flex gap-2">
                         {editingProduct && <button type="button" onClick={() => {setEditingProduct(null); setProdName(''); setProdPrice('');}} className="p-3 bg-gray-200 dark:bg-gray-700 rounded-xl font-bold">Cancelar</button>}
-                        <button type="submit" className="p-3 bg-blue-600 text-white rounded-xl font-bold flex items-center gap-2"><CheckCircle size={20} /> Salvar</button>
+                        <button type="submit" className="p-3 bg-brand text-white rounded-xl font-bold flex items-center gap-2"><CheckCircle size={20} /> Salvar</button>
                       </div>
                     </form>
                   </div>
@@ -539,7 +751,7 @@
                             <td className="p-4 font-medium">{p.name}</td>
                             <td className="p-4 font-bold text-green-600 dark:text-green-400">{formatCurrency(p.price)}</td>
                             <td className="p-4 flex justify-center gap-2">
-                              <button onClick={() => {setEditingProduct(p); setProdName(p.name); setProdPrice(p.price);}} className="p-2 text-blue-500 bg-blue-50 dark:bg-blue-900/30 rounded-lg"><Edit2 size={18}/></button>
+                              <button onClick={() => {setEditingProduct(p); setProdName(p.name); setProdPrice(p.price);}} className="p-2 text-brand bg-brand/10 rounded-lg"><Edit2 size={18}/></button>
                               <button onClick={() => deleteProduct(p.id)} className="p-2 text-red-500 bg-red-50 dark:bg-red-900/30 rounded-lg"><Trash2 size={18}/></button>
                             </td>
                           </tr>
@@ -553,7 +765,13 @@
               {/* === HISTÓRICO DE VENDAS === */}
               {activeTab === 'history' && (
                 <div className="max-w-4xl mx-auto print:hidden">
-                  <h2 className="text-2xl font-bold mb-6">Histórico de Transações do Evento</h2>
+                  <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-bold">Histórico de Transações</h2>
+                    <button onClick={exportCSV} disabled={sales.length === 0} className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-colors">
+                      <FileSpreadsheet size={18} /> Excel (CSV)
+                    </button>
+                  </div>
+                  
                   <div className="space-y-4">
                     {sales.length === 0 && <p className="text-gray-500">Nenhuma venda registrada neste evento ainda.</p>}
                     {sales.map(sale => (
@@ -568,7 +786,7 @@
                         </div>
                         <div className="flex items-center gap-4 mt-3 md:mt-0">
                           <span className="text-xl font-black">{formatCurrency(sale.total)}</span>
-                          <button onClick={() => cancelSale(sale.id)} className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 p-2 rounded-xl text-sm font-semibold flex items-center gap-2 transition-colors"><RotateCcw size={16} /> Estornar</button>
+                          <button onClick={() => cancelSale(sale.id)} className="text-red-500 hover:bg-red-50 dark:bg-red-900/30 p-2 rounded-xl text-sm font-semibold flex items-center gap-2 transition-colors"><RotateCcw size={16} /> Estornar</button>
                         </div>
                       </div>
                     ))}
@@ -588,7 +806,7 @@
                       <button onClick={requestPrint} className="bg-gray-800 hover:bg-gray-700 dark:bg-gray-600 dark:hover:bg-gray-500 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-colors">
                         <Printer size={18} /> Imprimir
                       </button>
-                      <button onClick={() => downloadPDF('report-pdf-content', 'Relatorio_Vendas')} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-colors">
+                      <button onClick={() => downloadPDF('report-pdf-content', 'Relatorio_Vendas')} className="bg-brand hover:bg-brand-hover text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-colors">
                         <Download size={18} /> Baixar PDF
                       </button>
                     </div>
@@ -667,7 +885,7 @@
                       <button onClick={requestPrint} className="bg-gray-800 hover:bg-gray-700 dark:bg-gray-600 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2">
                         <Printer size={18} /> Imprimir
                       </button>
-                      <button onClick={() => downloadPDF('closing-pdf-content', 'Fechamento_Gaveta')} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2">
+                      <button onClick={() => downloadPDF('closing-pdf-content', 'Fechamento_Gaveta')} className="bg-brand hover:bg-brand-hover text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2">
                         <Download size={18} /> Baixar PDF
                       </button>
                     </div>
@@ -691,7 +909,9 @@
                             <input 
                               type="number" min="0" step="1" 
                               value={cashDrawer[val] || ''} 
-                              onChange={(e) => setCashDrawer({...cashDrawer, [val]: Number(e.target.value)})}
+                              onChange={(e) => {
+                                setCashDrawer({...cashDrawer, [val]: Number(e.target.value)});
+                              }}
                               className="w-16 p-1 text-center bg-white border border-gray-300 rounded outline-none font-mono font-bold"
                               placeholder="0"
                             />
@@ -722,49 +942,92 @@
                         )}
                       </div>
                     </div>
-
-                    {/* ÁREA DE ASSINATURAS */}
-                    <div className="mt-20 pt-16 flex flex-col md:flex-row justify-around text-center text-sm font-semibold text-black gap-8">
-                      <div>
-                        <p>_____________________________________</p>
-                        <p className="mt-2">Coordenador Geral</p>
-                      </div>
-                      <div>
-                        <p>_____________________________________</p>
-                        <p className="mt-2">Coordenador Financeiro</p>
-                      </div>
-                      <div>
-                        <p>_____________________________________</p>
-                        <p className="mt-2">Operador de Caixa</p>
-                      </div>
-                    </div>
                   </div>
                 </div>
               )}
 
               {/* === CONFIGURAÇÕES === */}
               {activeTab === 'settings' && (
-                <div className="max-w-3xl mx-auto print:hidden space-y-6">
+                <div className="max-w-3xl mx-auto print:hidden space-y-6 pb-20">
                   <h2 className="text-2xl font-bold mb-6">Configurações do Sistema</h2>
                   
-                  {/* Identidade Visual */}
-                  <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 p-6 space-y-4">
-                    <h3 className="font-bold text-lg border-b dark:border-gray-700 pb-2 flex items-center gap-2"><ImageIcon size={20}/> Identidade Visual</h3>
+                  {/* Backup / Exportação */}
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 p-6">
+                    <h3 className="font-bold text-lg border-b dark:border-gray-700 pb-2 mb-4 flex items-center gap-2"><Save size={20}/> Backup Local (Segurança)</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Como o sistema funciona sem internet, faça um backup regularmente para não perder seus dados se o navegador for limpo.</p>
                     
+                    <div className="flex flex-col md:flex-row gap-4">
+                      <button onClick={handleExportBackup} className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2">
+                        <Download size={20}/> Baixar Backup (.json)
+                      </button>
+                      
+                      <div className="flex-1 relative">
+                        <input type="file" accept=".json" onChange={handleImportBackup} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                        <button className="w-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2">
+                          <Upload size={20}/> Restaurar Backup
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Identidade Visual e Upload de Logo */}
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 p-6 space-y-4">
+                    <h3 className="font-bold text-lg border-b dark:border-gray-700 pb-2 flex items-center gap-2"><Palette size={20}/> Identidade Visual</h3>
+                    
+                    <div className="mb-4">
+                      <label className="block text-sm font-semibold mb-2">Cor do Tema</label>
+                      <div className="flex flex-wrap gap-3">
+                        {Object.keys(themeColors).map(color => (
+                          <button key={color} onClick={() => {
+                              setSettings({...settings, accentColor: color});
+                              showToast('Cor do tema atualizada!');
+                            }} 
+                            className={`w-10 h-10 rounded-full border-4 ${settings.accentColor === color ? 'border-gray-800 dark:border-gray-200' : 'border-transparent'} ${themeColors[color]}`}>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-semibold mb-2">Nome do Grêmio / Organização</label>
-                        <input type="text" value={settings.gremioName} onChange={e => setSettings({...settings, gremioName: e.target.value})} className="w-full p-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-600 rounded-xl outline-none" placeholder="Ex: Grêmio Estudantil" />
+                        <label className="block text-sm font-semibold mb-2">Nome da Organização</label>
+                        <input type="text" value={settings.gremioName} onBlur={() => showToast('Nome salvo!')} onChange={e => setSettings({...settings, gremioName: e.target.value})} className="w-full p-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-600 rounded-xl outline-none" />
                       </div>
                       <div>
                         <label className="block text-sm font-semibold mb-2">Nome do Evento Atual</label>
-                        <input type="text" value={settings.eventName} onChange={e => setSettings({...settings, eventName: e.target.value})} className="w-full p-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-600 rounded-xl outline-none" placeholder="Ex: Festa Junina 2026" />
+                        <input type="text" value={settings.eventName} onBlur={() => showToast('Evento salvo!')} onChange={e => setSettings({...settings, eventName: e.target.value})} className="w-full p-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-600 rounded-xl outline-none" />
                       </div>
                     </div>
+
+                    {/* Novo sistema de Upload de Logo estilo backup json */}
                     <div>
-                      <label className="block text-sm font-semibold mb-2">URL da Logo (Imagem)</label>
-                      <input type="url" value={settings.logoUrl} onChange={e => setSettings({...settings, logoUrl: e.target.value})} className="w-full p-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-600 rounded-xl outline-none" placeholder="https://..." />
-                      <p className="text-xs text-gray-500 mt-1">Cole o link de uma imagem para aparecer nos relatórios impressos.</p>
+                      <label className="block text-sm font-semibold mb-2">Logo (Enviar Imagem)</label>
+                      <div className="flex flex-col sm:flex-row relative items-center gap-4">
+                        <div className="w-16 h-16 shrink-0 rounded-xl border-2 border-dashed border-gray-400 dark:border-gray-600 flex items-center justify-center overflow-hidden bg-gray-50 dark:bg-gray-900">
+                           {settings.logoUrl ? <img src={settings.logoUrl} alt="Preview Logo" className="w-full h-full object-cover" /> : <ImageIcon size={24} className="text-gray-400" />}
+                        </div>
+                        <div className="flex-1 relative w-full">
+                           <input 
+                             type="file" 
+                             accept="image/*" 
+                             onChange={(e) => {
+                               const file = e.target.files[0];
+                               if (file) {
+                                 const reader = new FileReader();
+                                 reader.onload = (event) => {
+                                   setSettings({...settings, logoUrl: event.target.result});
+                                   showToast('Logo atualizada com sucesso!');
+                                 };
+                                 reader.readAsDataURL(file);
+                               }
+                             }} 
+                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                           />
+                           <button type="button" className="w-full p-3 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 font-semibold rounded-xl flex items-center justify-center gap-2 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                             <Upload size={20}/> Escolher Arquivo .PNG ou .JPG
+                           </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -777,35 +1040,34 @@
                      <button onClick={() => {
                         if(sales.length === 0) return setAlertDialog({isOpen: true, title: 'Aviso', text: 'Não há vendas neste evento para arquivar.'});
                         setConfirmDialog({
-                          isOpen: true, title: 'Arquivar Evento', text: `Deseja encerrar o evento "${settings.eventName}" e salvar os logs? O caixa será zerado para o próximo evento.`, isDanger: false,
+                          isOpen: true, title: 'Arquivar Evento', text: `Deseja encerrar o evento "${settings.eventName}" e salvar os logs? O caixa será zerado.`, isDanger: false,
                           action: () => {
                             const newLog = {
-                              id: Date.now().toString(),
-                              eventName: settings.eventName,
-                              date: new Date().toISOString(),
-                              totalSales: getReport(sales).total,
-                              salesCount: sales.length,
-                              salesData: [...sales]
+                              id: Date.now().toString(), eventName: settings.eventName, date: new Date().toISOString(),
+                              totalSales: getReport(sales).total, salesCount: sales.length, salesData: [...sales]
                             };
-                            setEventLogs([newLog, ...eventLogs]);
-                            setSales([]);
-                            setCashDrawer(defaultDrawer);
+                            setEventLogs([newLog, ...eventLogs]); setSales([]); setCashDrawer(defaultDrawer);
                             setSettings({...settings, eventName: 'Novo Evento'});
-                            setAlertDialog({isOpen: true, title: 'Sucesso', text: 'Evento salvo nos logs e caixa zerado com sucesso!'});
+                            showToast('Evento encerrado e arquivado com sucesso!');
                           }
                         });
-                     }} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl flex items-center gap-2">
+                     }} className="bg-brand hover:bg-brand-hover text-white font-bold py-3 px-6 rounded-xl flex items-center gap-2">
                        <Archive size={20}/> Encerrar Evento Atual e Arquivar
                      </button>
 
-                     {/* Tabela de Logs Antigos */}
                      {eventLogs.length > 0 && (
                        <div className="mt-8">
                          <h4 className="font-bold mb-3">Histórico de Eventos Anteriores</h4>
                          <div className="overflow-x-auto">
                            <table className="w-full text-left text-sm border dark:border-gray-700 rounded-lg overflow-hidden">
                              <thead className="bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-400">
-                               <tr><th className="p-3">Data</th><th className="p-3">Evento</th><th className="p-3">Qtd. Vendas</th><th className="p-3 text-right">Faturamento</th></tr>
+                               <tr>
+                                 <th className="p-3">Data</th>
+                                 <th className="p-3">Evento</th>
+                                 <th className="p-3">Qtd. Vendas</th>
+                                 <th className="p-3 text-right">Faturamento</th>
+                                 <th className="p-3 text-right">Ações</th>
+                               </tr>
                              </thead>
                              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                                {eventLogs.map(log => (
@@ -814,6 +1076,11 @@
                                    <td className="p-3 font-medium">{log.eventName}</td>
                                    <td className="p-3">{log.salesCount}</td>
                                    <td className="p-3 text-right font-bold text-green-600 dark:text-green-400">{formatCurrency(log.totalSales)}</td>
+                                   <td className="p-3 text-right">
+                                     <button onClick={() => setViewingEvent(log)} className="text-brand hover:text-brand-hover font-semibold flex items-center justify-end gap-1 ml-auto transition-colors">
+                                       <Eye size={16}/> Ver
+                                     </button>
+                                   </td>
                                  </tr>
                                ))}
                              </tbody>
@@ -826,15 +1093,13 @@
                   {/* Zona de Perigo */}
                   <div className="bg-red-50 dark:bg-red-900/20 rounded-2xl border border-red-200 dark:border-red-800/50 p-6">
                     <h3 className="font-bold text-red-800 dark:text-red-400 mb-2 flex items-center gap-2"><AlertTriangle/> Zona de Perigo (Hard Reset)</h3>
-                    <p className="text-sm text-red-600 dark:text-red-300 mb-4">Isto apagará todas as vendas do evento atual, apagará o histórico de logs salvos e resetará a gaveta de dinheiro.</p>
+                    <p className="text-sm text-red-600 dark:text-red-300 mb-4">Isto apagará todas as vendas, histórico de logs e resetará a gaveta de dinheiro.</p>
                     <button onClick={() => {
                         setConfirmDialog({
-                          isOpen: true, title: 'Zerar Todo o Sistema', text: 'Você tem certeza absoluta? Todo o histórico atual, logs de eventos anteriores e dados da gaveta serão perdidos permanentemente.', isDanger: true,
+                          isOpen: true, title: 'Zerar Todo o Sistema', text: 'Você tem certeza absoluta? Todo o histórico atual e dados da gaveta serão perdidos permanentemente.', isDanger: true,
                           action: () => {
-                            setSales([]);
-                            setEventLogs([]);
-                            setCashDrawer(defaultDrawer); 
-                            setActiveTab('pos');
+                            setSales([]); setEventLogs([]); setCashDrawer(defaultDrawer); setActiveTab('pos');
+                            showToast('Sistema resetado!', 'error');
                           }
                         });
                     }} className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-xl">
