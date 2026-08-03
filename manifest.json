@@ -1,0 +1,11 @@
+{
+  "name": "Financeiro Grêmio PDV",
+  "short_name": "PDV Grêmio",
+  "description": "Sistema de Frente de Caixa para o Grêmio Estudantil",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "icons": []
+}
+
