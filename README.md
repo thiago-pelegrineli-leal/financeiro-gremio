@@ -23,16 +23,6 @@ Isso garante que o sistema de carrinho e a área de administração funcionem se
 * **TailwindCSS** (Estilização via CDN)
 * **Lucide React** (Ícones da interface)
 
-## 📦 Como Hospedar no GitHub Pages
-Como o projeto não possui backend, o processo de deploy é imediato:
-
-1. Faça o commit e push do arquivo `index.html` (junto com qualquer asset como o `manifest.json`) para a branch `main` do seu repositório.
-2. No repositório do GitHub, navegue até a aba **Settings** (Configurações).
-3. No menu lateral esquerdo, clique em **Pages**.
-4. Na seção *Build and deployment*, escolha a opção **Deploy from a branch**.
-5. Selecione a branch `main` e a pasta `/(root)`.
-6. Clique em **Save**. Em alguns minutos, o GitHub fornecerá o link público do painel.
-
 ## ⚠️ Manutenção e Segurança de Dados
 Devido à arquitetura focada em armazenamento local (LocalStorage), os dados ficam salvos apenas no dispositivo e navegador onde o PDV está sendo acessado. 
 
