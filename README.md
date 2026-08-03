@@ -1,4 +1,4 @@
-# 🛒 PDV Grêmio Estudantil - E.E. Profº João Teixeira Sampaio
+# 🛒 PDV Grêmio Estudantil 
 
 Um sistema de Ponto de Venda (PDV) e gestão financeira desenvolvido especificamente para as operações diárias e eventos do Grêmio Estudantil. Construído para ser leve, rápido e totalmente independente.
 
